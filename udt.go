@@ -42,19 +42,19 @@ func NewUDT(pcls int, mhandle bool, cdpa, cgpa *params.PartyAddress, data []byte
 	return u
 }
 
-// Serialize returns the byte sequence generated from a UDT instance.
-func (u *UDT) Serialize() ([]byte, error) {
-	b := make([]byte, u.Len())
-	if err := u.SerializeTo(b); err != nil {
+// MarshalBinary returns the byte sequence generated from a UDT instance.
+func (u *UDT) MarshalBinary() ([]byte, error) {
+	b := make([]byte, u.MarshalLen())
+	if err := u.MarshalTo(b); err != nil {
 		return nil, errors.Wrap(err, "failed to serialize UDT:")
 	}
 
 	return b, nil
 }
 
-// SerializeTo puts the byte sequence in the byte array given as b.
+// MarshalTo puts the byte sequence in the byte array given as b.
 // SCCP is dependent on the Pointers when serializing, which means that it might fail when invalid Pointers are set.
-func (u *UDT) SerializeTo(b []byte) error {
+func (u *UDT) MarshalTo(b []byte) error {
 	if len(b) < 5 {
 		return ErrTooShortToSerialize
 	}
@@ -64,30 +64,30 @@ func (u *UDT) SerializeTo(b []byte) error {
 	b[2] = u.Ptr1
 	b[3] = u.Ptr2
 	b[4] = u.Ptr3
-	if err := u.CalledPartyAddress.SerializeTo(b[5:int(u.Ptr2+3)]); err != nil {
+	if err := u.CalledPartyAddress.MarshalTo(b[5:int(u.Ptr2+3)]); err != nil {
 		return err
 	}
-	if err := u.CallingPartyAddress.SerializeTo(b[int(u.Ptr2+3):int(u.Ptr3+4)]); err != nil {
+	if err := u.CallingPartyAddress.MarshalTo(b[int(u.Ptr2+3):int(u.Ptr3+4)]); err != nil {
 		return err
 	}
 	b[u.Ptr3+4] = u.DataLength
-	copy(b[int(u.Ptr3+5):u.Len()], u.Data)
+	copy(b[int(u.Ptr3+5):u.MarshalLen()], u.Data)
 
 	return nil
 }
 
-// DecodeUDT decodes given byte sequence as a SCCP UDT.
-func DecodeUDT(b []byte) (*UDT, error) {
+// ParseUDT decodes given byte sequence as a SCCP UDT.
+func ParseUDT(b []byte) (*UDT, error) {
 	u := &UDT{}
-	if err := u.DecodeFromBytes(b); err != nil {
+	if err := u.UnmarshalBinary(b); err != nil {
 		return nil, err
 	}
 
 	return u, nil
 }
 
-// DecodeFromBytes sets the values retrieved from byte sequence in a SCCP UDT.
-func (u *UDT) DecodeFromBytes(b []byte) error {
+// UnmarshalBinary sets the values retrieved from byte sequence in a SCCP UDT.
+func (u *UDT) UnmarshalBinary(b []byte) error {
 	l := len(b)
 	if l < 4 {
 		return ErrTooShortToDecode
@@ -100,12 +100,12 @@ func (u *UDT) DecodeFromBytes(b []byte) error {
 	u.Ptr3 = b[4]
 
 	var err error
-	u.CalledPartyAddress, err = params.DecodePartyAddress(b[5:int(u.Ptr2+3)])
+	u.CalledPartyAddress, err = params.ParsePartyAddress(b[5:int(u.Ptr2+3)])
 	if err != nil {
 		return errors.Wrap(err, "failed to decode CalledPartyAddress:")
 	}
 
-	u.CallingPartyAddress, err = params.DecodePartyAddress(b[int(u.Ptr2+3):int(u.Ptr3+4)])
+	u.CallingPartyAddress, err = params.ParsePartyAddress(b[int(u.Ptr2+3):int(u.Ptr3+4)])
 	if err != nil {
 		return errors.Wrap(err, "failed to decode CallingPartyAddress:")
 	}
@@ -116,9 +116,9 @@ func (u *UDT) DecodeFromBytes(b []byte) error {
 	return nil
 }
 
-// Len returns the actual length of Header.
-func (u *UDT) Len() int {
-	return 6 + u.CalledPartyAddress.Len() + u.CallingPartyAddress.Len() + len(u.Data)
+// MarshalLen returns the serial length.
+func (u *UDT) MarshalLen() int {
+	return 6 + u.CalledPartyAddress.MarshalLen() + u.CallingPartyAddress.MarshalLen() + len(u.Data)
 }
 
 // SetLength sets the length in Length field.

@@ -11,6 +11,8 @@ This is still an experimental project, and currently in its very early stage of 
 package sccp
 
 import (
+	"encoding"
+	"fmt"
 	"strconv"
 
 	"github.com/pkg/errors"
@@ -42,26 +44,27 @@ const (
 
 // Message is an interface that defines SCCP messages.
 type Message interface {
-	DecodeFromBytes([]byte) error
-	SerializeTo([]byte) error
-	Len() int
+	encoding.BinaryMarshaler
+	encoding.BinaryUnmarshaler
+	MarshalTo([]byte) error
+	MarshalLen() int
 	MessageType() uint8
 	MessageTypeName() string
-	String() string
+	fmt.Stringer
 }
 
-// Serialize returns the byte sequence generated from Message by Message Type.
-func Serialize(m Message) ([]byte, error) {
-	b := make([]byte, m.Len())
-	if err := m.SerializeTo(b); err != nil {
+// FormatMessage returns the byte sequence generated from Message by Message Type.
+func FormatMessage(m Message) ([]byte, error) {
+	b := make([]byte, m.MarshalLen())
+	if err := m.MarshalTo(b); err != nil {
 		return nil, err
 	}
 	return b, nil
 }
 
-// Decode decodes the byte sequence into Message by Message Type.
+// ParseMessage decodes the byte sequence into Message by Message Type.
 // Currently this only supports UDT type of message only.
-func Decode(b []byte) (Message, error) {
+func ParseMessage(b []byte) (Message, error) {
 	var m Message
 	switch b[0] {
 	/* TODO: implement!
@@ -96,7 +99,7 @@ func Decode(b []byte) (Message, error) {
 		}
 	}
 
-	if err := m.DecodeFromBytes(b); err != nil {
+	if err := m.UnmarshalBinary(b); err != nil {
 		return nil, errors.Wrap(err, "failed to decode SCCP:")
 	}
 	return m, nil

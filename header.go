@@ -22,33 +22,33 @@ func NewHeader(mtype uint8, payload []byte) *Header {
 	}
 }
 
-// Serialize returns the byte sequence generated from a Header instance.
-func (h *Header) Serialize() ([]byte, error) {
-	b := make([]byte, h.Len())
-	if err := h.SerializeTo(b); err != nil {
+// MarshalBinary returns the byte sequence generated from a Header instance.
+func (h *Header) MarshalBinary() ([]byte, error) {
+	b := make([]byte, h.MarshalLen())
+	if err := h.MarshalTo(b); err != nil {
 		return nil, err
 	}
 	return b, nil
 }
 
-// SerializeTo puts the byte sequence in the byte array given as b.
-func (h *Header) SerializeTo(b []byte) error {
+// MarshalTo puts the byte sequence in the byte array given as b.
+func (h *Header) MarshalTo(b []byte) error {
 	b[0] = h.Type
-	copy(b[1:h.Len()], h.Payload)
+	copy(b[1:h.MarshalLen()], h.Payload)
 	return nil
 }
 
-// DecodeHeader decodes given byte sequence as a SCCP common header.
-func DecodeHeader(b []byte) (*Header, error) {
+// ParseHeader decodes given byte sequence as a SCCP common header.
+func ParseHeader(b []byte) (*Header, error) {
 	h := &Header{}
-	if err := h.DecodeFromBytes(b); err != nil {
+	if err := h.UnmarshalBinary(b); err != nil {
 		return nil, err
 	}
 	return h, nil
 }
 
-// DecodeFromBytes sets the values retrieved from byte sequence in a SCCP common header.
-func (h *Header) DecodeFromBytes(b []byte) error {
+// UnmarshalBinary sets the values retrieved from byte sequence in a SCCP common header.
+func (h *Header) UnmarshalBinary(b []byte) error {
 	l := len(b)
 	if l < 2 {
 		return ErrTooShortToDecode
@@ -58,8 +58,8 @@ func (h *Header) DecodeFromBytes(b []byte) error {
 	return nil
 }
 
-// Len returns the actual length of Header.
-func (h *Header) Len() int {
+// MarshalLen returns the serial length.
+func (h *Header) MarshalLen() int {
 	return 1 + len(h.Payload)
 }
 
