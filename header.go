@@ -6,6 +6,7 @@ package sccp
 
 import (
 	"fmt"
+	"io"
 )
 
 // Header is a SCCP common header.
@@ -49,12 +50,11 @@ func ParseHeader(b []byte) (*Header, error) {
 
 // UnmarshalBinary sets the values retrieved from byte sequence in a SCCP common header.
 func (h *Header) UnmarshalBinary(b []byte) error {
-	l := len(b)
-	if l < 2 {
-		return ErrTooShortToDecode
+	if len(b) < 2 {
+		return io.ErrUnexpectedEOF
 	}
 	h.Type = b[0]
-	h.Payload = b[1:l]
+	h.Payload = b[1:]
 	return nil
 }
 

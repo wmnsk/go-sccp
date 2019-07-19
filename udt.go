@@ -6,6 +6,7 @@ package sccp
 
 import (
 	"fmt"
+	"io"
 
 	"github.com/pkg/errors"
 	"github.com/wmnsk/go-sccp/params"
@@ -56,7 +57,7 @@ func (u *UDT) MarshalBinary() ([]byte, error) {
 // SCCP is dependent on the Pointers when serializing, which means that it might fail when invalid Pointers are set.
 func (u *UDT) MarshalTo(b []byte) error {
 	if len(b) < 5 {
-		return ErrTooShortToSerialize
+		return io.ErrUnexpectedEOF
 	}
 
 	b[0] = u.Type
@@ -90,7 +91,7 @@ func ParseUDT(b []byte) (*UDT, error) {
 func (u *UDT) UnmarshalBinary(b []byte) error {
 	l := len(b)
 	if l < 4 {
-		return ErrTooShortToDecode
+		return io.ErrUnexpectedEOF
 	}
 
 	u.Type = b[0]

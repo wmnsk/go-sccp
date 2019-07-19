@@ -6,6 +6,7 @@ package params
 
 import (
 	"encoding/binary"
+	"io"
 
 	"github.com/pkg/errors"
 	"github.com/wmnsk/go-sccp/utils"
@@ -109,7 +110,7 @@ func ParsePartyAddress(b []byte) (*PartyAddress, error) {
 func (p *PartyAddress) UnmarshalBinary(b []byte) error {
 	l := len(b)
 	if l < 2 {
-		return ErrTooShortToDecode
+		return io.ErrUnexpectedEOF
 	}
 
 	p.Length = b[0]

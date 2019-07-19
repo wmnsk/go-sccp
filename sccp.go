@@ -13,7 +13,6 @@ package sccp
 import (
 	"encoding"
 	"fmt"
-	"strconv"
 
 	"github.com/pkg/errors"
 )
@@ -93,10 +92,7 @@ func ParseMessage(b []byte) (Message, error) {
 	case LUDTS:
 	*/
 	default:
-		return nil, &ErrUnsupportedType{
-			Type: strconv.Itoa(int(b[0])),
-			Msg:  "failed to decode SCCP message",
-		}
+		return nil, UnsupportedTypeError(b[0])
 	}
 
 	if err := m.UnmarshalBinary(b); err != nil {
