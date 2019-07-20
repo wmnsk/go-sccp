@@ -56,15 +56,6 @@ type Message interface {
 	fmt.Stringer
 }
 
-// FormatMessage returns the byte sequence generated from Message by Message Type.
-func FormatMessage(m Message) ([]byte, error) {
-	b := make([]byte, m.MarshalLen())
-	if err := m.MarshalTo(b); err != nil {
-		return nil, err
-	}
-	return b, nil
-}
-
 // ParseMessage decodes the byte sequence into Message by Message Type.
 // Currently this only supports UDT type of message only.
 func ParseMessage(b []byte) (Message, error) {
