@@ -27,6 +27,23 @@ var testcases = []struct {
 	decodeFunc
 }{
 	{
+		description: "Header",
+		structured: sccp.NewHeader(
+			1, // Code
+			[]byte{0xde, 0xad, 0xbe, 0xef},
+		),
+		serialized: []byte{
+			0x01, 0xde, 0xad, 0xbe, 0xef,
+		},
+		decodeFunc: func(b []byte) (serializable, error) {
+			v, err := sccp.ParseHeader(b)
+			if err != nil {
+				return nil, err
+			}
+
+			return v, nil
+		},
+	}, {
 		description: "UDT",
 		structured: sccp.NewUDT(
 			1,    // Protocol Class
