@@ -5,6 +5,7 @@
 package sccp_test
 
 import (
+	"encoding"
 	"testing"
 
 	"github.com/pascaldekloe/goe/verify"
@@ -13,8 +14,8 @@ import (
 )
 
 type serializable interface {
-	Serialize() ([]byte, error)
-	Len() int
+	encoding.BinaryMarshaler
+	MarshalLen() int
 }
 
 type decodeFunc func([]byte) (serializable, error)
@@ -56,7 +57,7 @@ var testcases = []struct {
 			0xad, 0xbe, 0xef,
 		},
 		decodeFunc: func(b []byte) (serializable, error) {
-			v, err := sccp.DecodeUDT(b)
+			v, err := sccp.ParseUDT(b)
 			if err != nil {
 				return nil, err
 			}
@@ -83,7 +84,7 @@ func TestMessages(t *testing.T) {
 			})
 
 			t.Run("Serialize", func(t *testing.T) {
-				b, err := c.structured.Serialize()
+				b, err := c.structured.MarshalBinary()
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -94,7 +95,7 @@ func TestMessages(t *testing.T) {
 			})
 
 			t.Run("Len", func(t *testing.T) {
-				if got, want := c.structured.Len(), len(c.serialized); got != want {
+				if got, want := c.structured.MarshalLen(), len(c.serialized); got != want {
 					t.Fatalf("got %v want %v", got, want)
 				}
 			})
@@ -105,7 +106,7 @@ func TestMessages(t *testing.T) {
 					return
 				}
 
-				decoded, err := sccp.Decode(c.serialized)
+				decoded, err := sccp.ParseMessage(c.serialized)
 				if err != nil {
 					t.Fatal(err)
 				}

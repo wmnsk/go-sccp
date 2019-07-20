@@ -6,6 +6,7 @@ package params
 
 import (
 	"encoding/binary"
+	"io"
 
 	"github.com/pkg/errors"
 	"github.com/wmnsk/go-sccp/utils"
@@ -43,21 +44,21 @@ func NewPartyAddress(gti, spc, ssn, tt, np, es, nai int, gt []byte) *PartyAddres
 			GlobalTitleInfo:          gt,
 		},
 	}
-	p.Length = uint8(p.Len() - 1)
+	p.Length = uint8(p.MarshalLen() - 1)
 	return p
 }
 
-// Serialize returns the byte sequence generated from a PartyAddress instance.
-func (p *PartyAddress) Serialize() ([]byte, error) {
-	b := make([]byte, p.Len())
-	if err := p.SerializeTo(b); err != nil {
+// MarshalBinary returns the byte sequence generated from a PartyAddress instance.
+func (p *PartyAddress) MarshalBinary() ([]byte, error) {
+	b := make([]byte, p.MarshalLen())
+	if err := p.MarshalTo(b); err != nil {
 		return nil, errors.Wrap(err, "failed to serialize PartyAddress:")
 	}
 	return b, nil
 }
 
-// SerializeTo puts the byte sequence in the byte array given as b.
-func (p *PartyAddress) SerializeTo(b []byte) error {
+// MarshalTo puts the byte sequence in the byte array given as b.
+func (p *PartyAddress) MarshalTo(b []byte) error {
 	b[0] = p.Length
 	b[1] = p.Indicator
 	var offset = 2
@@ -89,27 +90,27 @@ func (p *PartyAddress) SerializeTo(b []byte) error {
 		offset += 3
 	}
 
-	copy(b[offset:p.Len()], gt.GlobalTitleInfo)
+	copy(b[offset:p.MarshalLen()], gt.GlobalTitleInfo)
 	return nil
 }
 
-// DecodePartyAddress decodes given byte sequence as a SCCP common header.
-func DecodePartyAddress(b []byte) (*PartyAddress, error) {
+// ParsePartyAddress decodes given byte sequence as a SCCP common header.
+func ParsePartyAddress(b []byte) (*PartyAddress, error) {
 	p := &PartyAddress{
 		GlobalTitle: &GlobalTitle{},
 	}
-	if err := p.DecodeFromBytes(b); err != nil {
+	if err := p.UnmarshalBinary(b); err != nil {
 		return nil, err
 	}
 
 	return p, nil
 }
 
-// DecodeFromBytes sets the values retrieved from byte sequence in a SCCP common header.
-func (p *PartyAddress) DecodeFromBytes(b []byte) error {
+// UnmarshalBinary sets the values retrieved from byte sequence in a SCCP common header.
+func (p *PartyAddress) UnmarshalBinary(b []byte) error {
 	l := len(b)
 	if l < 2 {
-		return ErrTooShortToDecode
+		return io.ErrUnexpectedEOF
 	}
 
 	p.Length = b[0]
@@ -151,8 +152,8 @@ func (p *PartyAddress) DecodeFromBytes(b []byte) error {
 	return nil
 }
 
-// Len returns the actual length of PartyAddress.
-func (p *PartyAddress) Len() int {
+// MarshalLen returns the serial length.
+func (p *PartyAddress) MarshalLen() int {
 	l := 2 + len(p.GlobalTitle.GlobalTitleInfo)
 	if p.HasPC() {
 		l += 2

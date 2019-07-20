@@ -21,7 +21,7 @@ func TestSerializeHeader(t *testing.T) {
 		},
 	)
 
-	serialized, err := h.Serialize()
+	serialized, err := h.MarshalBinary()
 	if err != nil {
 		t.Fatalf("Failed to serialize Header %s", err)
 	}
@@ -35,7 +35,7 @@ func TestSerializeHeader(t *testing.T) {
 }
 
 func TestDecodeHeader(t *testing.T) {
-	h, err := DecodeHeader(testHeaderBytes)
+	h, err := ParseHeader(testHeaderBytes)
 	if err != nil {
 		t.Fatalf("Failed to decode Header: %s", err)
 	}

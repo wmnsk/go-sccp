@@ -5,6 +5,7 @@
 package params_test
 
 import (
+	"encoding"
 	"testing"
 
 	"github.com/pascaldekloe/goe/verify"
@@ -12,8 +13,8 @@ import (
 )
 
 type serializable interface {
-	Serialize() ([]byte, error)
-	Len() int
+	encoding.BinaryMarshaler
+	MarshalLen() int
 }
 
 type decodeFunc func([]byte) (serializable, error)
@@ -37,7 +38,7 @@ var testcases = []struct {
 			0x0a, 0x12, 0x06, 0x00, 0x11, 0x04, 0x21, 0x43, 0x65, 0x87, 0x09,
 		},
 		decodeFunc: func(b []byte) (serializable, error) {
-			v, err := params.DecodePartyAddress(b)
+			v, err := params.ParsePartyAddress(b)
 			if err != nil {
 				return nil, err
 			}
@@ -64,7 +65,7 @@ func TestStructuredParams(t *testing.T) {
 			})
 
 			t.Run("Serialize", func(t *testing.T) {
-				b, err := c.structured.Serialize()
+				b, err := c.structured.MarshalBinary()
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -75,7 +76,7 @@ func TestStructuredParams(t *testing.T) {
 			})
 
 			t.Run("Len", func(t *testing.T) {
-				if got, want := c.structured.Len(), len(c.serialized); got != want {
+				if got, want := c.structured.MarshalLen(), len(c.serialized); got != want {
 					t.Fatalf("got %v want %v", got, want)
 				}
 			})
