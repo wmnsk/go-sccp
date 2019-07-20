@@ -14,7 +14,7 @@ import (
 
 // UDT is SCCP Message Unit Data(UDT)
 type UDT struct {
-	Type uint8
+	Type MsgType
 	params.ProtocolClass
 	Ptr1, Ptr2, Ptr3    uint8
 	CalledPartyAddress  *params.PartyAddress
@@ -26,10 +26,9 @@ type UDT struct {
 // NewUDT creates a new UDT.
 func NewUDT(pcls int, mhandle bool, cdpa, cgpa *params.PartyAddress, data []byte) *UDT {
 	u := &UDT{
-		Type: 0x09,
+		Type: MsgTypeUDT,
 		ProtocolClass: params.NewProtocolClass(
-			pcls,
-			mhandle,
+			pcls, mhandle,
 		),
 		Ptr1:                3,
 		CalledPartyAddress:  cdpa,
@@ -47,7 +46,7 @@ func NewUDT(pcls int, mhandle bool, cdpa, cgpa *params.PartyAddress, data []byte
 func (u *UDT) MarshalBinary() ([]byte, error) {
 	b := make([]byte, u.MarshalLen())
 	if err := u.MarshalTo(b); err != nil {
-		return nil, errors.Wrap(err, "failed to serialize UDT:")
+		return nil, errors.Wrap(err, "failed to serialize UDT")
 	}
 
 	return b, nil
@@ -60,7 +59,7 @@ func (u *UDT) MarshalTo(b []byte) error {
 		return io.ErrUnexpectedEOF
 	}
 
-	b[0] = u.Type
+	b[0] = uint8(u.Type)
 	b[1] = uint8(u.ProtocolClass)
 	b[2] = u.Ptr1
 	b[3] = u.Ptr2
@@ -94,7 +93,7 @@ func (u *UDT) UnmarshalBinary(b []byte) error {
 		return io.ErrUnexpectedEOF
 	}
 
-	u.Type = b[0]
+	u.Type = MsgType(b[0])
 	u.ProtocolClass = params.ProtocolClass(b[1])
 	u.Ptr1 = b[2]
 	u.Ptr2 = b[3]
@@ -103,12 +102,12 @@ func (u *UDT) UnmarshalBinary(b []byte) error {
 	var err error
 	u.CalledPartyAddress, err = params.ParsePartyAddress(b[5:int(u.Ptr2+3)])
 	if err != nil {
-		return errors.Wrap(err, "failed to decode CalledPartyAddress:")
+		return errors.Wrap(err, "failed to decode CalledPartyAddress")
 	}
 
 	u.CallingPartyAddress, err = params.ParsePartyAddress(b[int(u.Ptr2+3):int(u.Ptr3+4)])
 	if err != nil {
-		return errors.Wrap(err, "failed to decode CallingPartyAddress:")
+		return errors.Wrap(err, "failed to decode CallingPartyAddress")
 	}
 
 	u.DataLength = b[int(u.Ptr3+4)]
@@ -139,7 +138,7 @@ func (u *UDT) String() string {
 }
 
 // MessageType returns the Message Type in int.
-func (u *UDT) MessageType() uint8 {
+func (u *UDT) MessageType() MsgType {
 	return MsgTypeUDT
 }
 

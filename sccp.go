@@ -17,9 +17,13 @@ import (
 	"github.com/pkg/errors"
 )
 
+// MsgType is type of SCCP message.
+type MsgType uint8
+
 // Message Type definitions.
 const (
-	MsgTypeCR uint8 = iota + 1
+	_ MsgType = iota
+	MsgTypeCR
 	MsgTypeCC
 	MsgTypeCREF
 	MsgTypeRLSD
@@ -47,7 +51,7 @@ type Message interface {
 	encoding.BinaryUnmarshaler
 	MarshalTo([]byte) error
 	MarshalLen() int
-	MessageType() uint8
+	MessageType() MsgType
 	MessageTypeName() string
 	fmt.Stringer
 }
@@ -65,7 +69,7 @@ func FormatMessage(m Message) ([]byte, error) {
 // Currently this only supports UDT type of message only.
 func ParseMessage(b []byte) (Message, error) {
 	var m Message
-	switch b[0] {
+	switch MsgType(b[0]) {
 	/* TODO: implement!
 	case CR:
 	case CC:
@@ -96,7 +100,7 @@ func ParseMessage(b []byte) (Message, error) {
 	}
 
 	if err := m.UnmarshalBinary(b); err != nil {
-		return nil, errors.Wrap(err, "failed to decode SCCP:")
+		return nil, errors.Wrap(err, "failed to decode SCCP")
 	}
 	return m, nil
 }
