@@ -160,7 +160,12 @@ func (p *PartyAddress) UnmarshalBinary(b []byte) error {
 		offset++
 	}
 
-	p.GlobalTitleInfo = b[offset:]
+	infoLen := 1 + int(p.Length) - offset
+	if infoLen < 0 {
+		return errors.New("sccp: party address length misfit")
+	}
+	p.GlobalTitleInfo = make([]byte, infoLen)
+	copy(p.GlobalTitleInfo, b[offset:])
 
 	return nil
 }
