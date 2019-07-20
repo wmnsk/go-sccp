@@ -11,12 +11,12 @@ import (
 
 // Header is a SCCP common header.
 type Header struct {
-	Type    uint8
+	Type    MsgType
 	Payload []byte
 }
 
 // NewHeader creates a new Header.
-func NewHeader(mtype uint8, payload []byte) *Header {
+func NewHeader(mtype MsgType, payload []byte) *Header {
 	return &Header{
 		Type:    mtype,
 		Payload: payload,
@@ -34,7 +34,7 @@ func (h *Header) MarshalBinary() ([]byte, error) {
 
 // MarshalTo puts the byte sequence in the byte array given as b.
 func (h *Header) MarshalTo(b []byte) error {
-	b[0] = h.Type
+	b[0] = uint8(h.Type)
 	copy(b[1:h.MarshalLen()], h.Payload)
 	return nil
 }
@@ -53,7 +53,7 @@ func (h *Header) UnmarshalBinary(b []byte) error {
 	if len(b) < 2 {
 		return io.ErrUnexpectedEOF
 	}
-	h.Type = b[0]
+	h.Type = MsgType(b[0])
 	h.Payload = b[1:]
 	return nil
 }
