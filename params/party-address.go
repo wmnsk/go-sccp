@@ -18,7 +18,7 @@ type PartyAddress struct {
 	Indicator          uint8
 	SignalingPointCode uint16
 	SubsystemNumber    uint8
-	*GlobalTitle
+	GlobalTitle
 }
 
 // GlobalTitle is a GlobalTitle inside the Called/Calling Party Address.
@@ -36,7 +36,7 @@ func NewPartyAddress(gti, spc, ssn, tt, np, es, nai int, gt []byte) *PartyAddres
 		Indicator:          uint8(gti),
 		SignalingPointCode: uint16(spc),
 		SubsystemNumber:    uint8(ssn),
-		GlobalTitle: &GlobalTitle{
+		GlobalTitle: GlobalTitle{
 			TranslationType:          uint8(tt),
 			NumberingPlan:            np,
 			EncodingScheme:           es,
@@ -71,34 +71,31 @@ func (p *PartyAddress) MarshalTo(b []byte) error {
 		offset++
 	}
 
-	gt := p.GlobalTitle
 	switch p.GTI() {
 	case 1:
-		b[offset] = gt.NatureOfAddressIndicator
+		b[offset] = p.NatureOfAddressIndicator
 		offset++
 	case 2:
-		b[offset] = gt.TranslationType
+		b[offset] = p.TranslationType
 		offset++
 	case 3:
-		b[offset] = gt.TranslationType
+		b[offset] = p.TranslationType
 		b[offset+1] = uint8(p.NumberingPlan<<4 | p.EncodingScheme)
 		offset += 2
 	case 4:
-		b[offset] = gt.TranslationType
+		b[offset] = p.TranslationType
 		b[offset+1] = uint8(p.NumberingPlan<<4 | p.EncodingScheme)
 		b[offset+2] = p.NatureOfAddressIndicator
 		offset += 3
 	}
 
-	copy(b[offset:p.MarshalLen()], gt.GlobalTitleInfo)
+	copy(b[offset:p.MarshalLen()], p.GlobalTitleInfo)
 	return nil
 }
 
 // ParsePartyAddress decodes given byte sequence as a SCCP common header.
 func ParsePartyAddress(b []byte) (*PartyAddress, error) {
-	p := &PartyAddress{
-		GlobalTitle: &GlobalTitle{},
-	}
+	p := new(PartyAddress)
 	if err := p.UnmarshalBinary(b); err != nil {
 		return nil, err
 	}
@@ -126,35 +123,34 @@ func (p *PartyAddress) UnmarshalBinary(b []byte) error {
 		offset++
 	}
 
-	gt := p.GlobalTitle
 	switch p.GTI() {
 	case 1:
-		gt.NatureOfAddressIndicator = b[offset]
+		p.NatureOfAddressIndicator = b[offset]
 		offset++
 	case 2:
-		gt.TranslationType = b[offset]
+		p.TranslationType = b[offset]
 		offset++
 	case 3:
-		gt.TranslationType = b[offset]
-		gt.NumberingPlan = int(b[offset+1]) >> 4 & 0xf
-		gt.EncodingScheme = int(b[offset+1]) & 0xf
+		p.TranslationType = b[offset]
+		p.NumberingPlan = int(b[offset+1]) >> 4 & 0xf
+		p.EncodingScheme = int(b[offset+1]) & 0xf
 		offset += 2
 	case 4:
-		gt.TranslationType = b[3]
-		gt.NumberingPlan = int(b[offset+1]) >> 4 & 0xf
-		gt.EncodingScheme = int(b[offset+1]) & 0xf
-		gt.NatureOfAddressIndicator = b[offset+2]
+		p.TranslationType = b[3]
+		p.NumberingPlan = int(b[offset+1]) >> 4 & 0xf
+		p.EncodingScheme = int(b[offset+1]) & 0xf
+		p.NatureOfAddressIndicator = b[offset+2]
 		offset += 3
 	}
 
-	gt.GlobalTitleInfo = b[offset:l]
+	p.GlobalTitleInfo = b[offset:l]
 
 	return nil
 }
 
 // MarshalLen returns the serial length.
 func (p *PartyAddress) MarshalLen() int {
-	l := 2 + len(p.GlobalTitle.GlobalTitleInfo)
+	l := 2 + len(p.GlobalTitleInfo)
 	if p.HasPC() {
 		l += 2
 	}
@@ -177,7 +173,7 @@ func (p *PartyAddress) MarshalLen() int {
 
 // SetLength sets the length in Length field.
 func (p *PartyAddress) SetLength() {
-	l := 1 + len(p.GlobalTitle.GlobalTitleInfo)
+	l := 1 + len(p.GlobalTitleInfo)
 	if p.HasPC() {
 		l += 2
 	}
