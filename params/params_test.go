@@ -6,6 +6,7 @@ package params_test
 
 import (
 	"encoding"
+	"io"
 	"testing"
 
 	"github.com/pascaldekloe/goe/verify"
@@ -81,5 +82,17 @@ func TestStructuredParams(t *testing.T) {
 				}
 			})
 		})
+	}
+}
+
+func TestPartialStructuredParams(t *testing.T) {
+	for _, c := range testcases {
+		for i := range c.serialized {
+			partial := c.serialized[:i]
+			_, err := c.decodeFunc(partial)
+			if err != io.ErrUnexpectedEOF {
+				t.Errorf("%#x: got error %v, want unexpected EOF", partial, err)
+			}
+		}
 	}
 }

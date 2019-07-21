@@ -105,22 +105,30 @@ func ParsePartyAddress(b []byte) (*PartyAddress, error) {
 
 // UnmarshalBinary sets the values retrieved from byte sequence in a SCCP common header.
 func (p *PartyAddress) UnmarshalBinary(b []byte) error {
-	l := len(b)
-	if l < 2 {
+	if len(b) < 3 {
 		return io.ErrUnexpectedEOF
 	}
-
 	p.Length = b[0]
+	if int(p.Length) >= len(b) {
+		return io.ErrUnexpectedEOF
+	}
 	p.Indicator = b[1]
 
 	var offset = 2
 	if p.HasPC() {
-		p.SignalingPointCode = binary.BigEndian.Uint16(b[offset : offset+2])
-		offset += 2
+		end := offset + 2
+		if end >= len(b) {
+			return io.ErrUnexpectedEOF
+		}
+		p.SignalingPointCode = binary.BigEndian.Uint16(b[offset:end])
+		offset = end
 	}
 	if p.HasSSN() {
 		p.SubsystemNumber = b[offset]
 		offset++
+		if offset >= len(b) {
+			return io.ErrUnexpectedEOF
+		}
 	}
 
 	switch p.GTI() {
@@ -132,18 +140,32 @@ func (p *PartyAddress) UnmarshalBinary(b []byte) error {
 		offset++
 	case 3:
 		p.TranslationType = b[offset]
-		p.NumberingPlan = int(b[offset+1]) >> 4 & 0xf
-		p.EncodingScheme = int(b[offset+1]) & 0xf
-		offset += 2
+		offset++
+		if offset >= len(b) {
+			return io.ErrUnexpectedEOF
+		}
+		p.NumberingPlan = int(b[offset]) >> 4 & 0xf
+		p.EncodingScheme = int(b[offset]) & 0xf
+		offset++
 	case 4:
-		p.TranslationType = b[3]
-		p.NumberingPlan = int(b[offset+1]) >> 4 & 0xf
-		p.EncodingScheme = int(b[offset+1]) & 0xf
-		p.NatureOfAddressIndicator = b[offset+2]
-		offset += 3
+		p.TranslationType = b[offset]
+		offset++
+		if offset+1 >= len(b) {
+			return io.ErrUnexpectedEOF
+		}
+		p.NumberingPlan = int(b[offset]) >> 4 & 0xf
+		p.EncodingScheme = int(b[offset]) & 0xf
+		offset++
+		p.NatureOfAddressIndicator = b[offset]
+		offset++
 	}
 
-	p.GlobalTitleInfo = b[offset:l]
+	infoLen := 1 + int(p.Length) - offset
+	if infoLen < 0 {
+		return errors.New("sccp: party address length misfit")
+	}
+	p.GlobalTitleInfo = make([]byte, infoLen)
+	copy(p.GlobalTitleInfo, b[offset:])
 
 	return nil
 }
