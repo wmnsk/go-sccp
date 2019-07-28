@@ -12,7 +12,7 @@ import (
 	"github.com/wmnsk/go-sccp/params"
 )
 
-// UDT is SCCP Message Unit Data(UDT)
+// UDT represents a SCCP Message Unit Data(UDT).
 type UDT struct {
 	Type MsgType
 	params.ProtocolClass
@@ -89,15 +89,24 @@ func ParseUDT(b []byte) (*UDT, error) {
 // UnmarshalBinary sets the values retrieved from byte sequence in a SCCP UDT.
 func (u *UDT) UnmarshalBinary(b []byte) error {
 	l := len(b)
-	if l < 4 {
+	if l <= 4 {
 		return io.ErrUnexpectedEOF
 	}
 
 	u.Type = MsgType(b[0])
 	u.ProtocolClass = params.ProtocolClass(b[1])
 	u.Ptr1 = b[2]
+	if l < int(u.Ptr1) {
+		return io.ErrUnexpectedEOF
+	}
 	u.Ptr2 = b[3]
+	if l < int(u.Ptr2+3) {
+		return io.ErrUnexpectedEOF
+	}
 	u.Ptr3 = b[4]
+	if l < int(u.Ptr3+5) {
+		return io.ErrUnexpectedEOF
+	}
 
 	var err error
 	u.CalledPartyAddress, err = params.ParsePartyAddress(b[5:int(u.Ptr2+3)])
@@ -111,9 +120,12 @@ func (u *UDT) UnmarshalBinary(b []byte) error {
 	}
 
 	u.DataLength = b[int(u.Ptr3+4)]
-	u.Data = b[int(u.Ptr3+5):l]
+	if data := b[int(u.Ptr3+5):l]; len(data) == int(u.DataLength) {
+		u.Data = data
+		return nil
+	}
 
-	return nil
+	return io.ErrUnexpectedEOF
 }
 
 // MarshalLen returns the serial length.
