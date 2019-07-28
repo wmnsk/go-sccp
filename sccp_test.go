@@ -7,9 +7,11 @@ package sccp_test
 import (
 	"encoding"
 	"io"
+	"log"
 	"testing"
 
 	"github.com/pascaldekloe/goe/verify"
+	"github.com/pkg/errors"
 	"github.com/wmnsk/go-sccp"
 	"github.com/wmnsk/go-sccp/params"
 )
@@ -89,6 +91,7 @@ func TestMessages(t *testing.T) {
 			t.Run("Serialize", func(t *testing.T) {
 				b, err := c.structured.MarshalBinary()
 				if err != nil {
+					log.Println(errors.WithStack(err))
 					t.Fatal(err)
 				}
 
@@ -136,6 +139,16 @@ func TestPartialStructuredMessages(t *testing.T) {
 			_, err := c.decodeFunc(partial)
 			if err != io.ErrUnexpectedEOF {
 				t.Errorf("%#x: got error %v, want unexpected EOF", partial, err)
+			}
+		}
+
+		for i := range c.serialized {
+			if i == len(c.serialized) {
+				continue
+			}
+			b := make([]byte, i)
+			if err := c.structured.(*sccp.UDT).MarshalTo(b); err != io.ErrUnexpectedEOF {
+				t.Errorf("%#x: got error %v, want unexpected EOF", b, err)
 			}
 		}
 	}
