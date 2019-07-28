@@ -6,9 +6,12 @@ package sccp_test
 
 import (
 	"encoding"
+	"io"
+	"log"
 	"testing"
 
 	"github.com/pascaldekloe/goe/verify"
+	"github.com/pkg/errors"
 	"github.com/wmnsk/go-sccp"
 	"github.com/wmnsk/go-sccp/params"
 )
@@ -18,23 +21,16 @@ type serializable interface {
 	MarshalLen() int
 }
 
-type decodeFunc func([]byte) (serializable, error)
-
 var testcases = []struct {
 	description string
 	structured  serializable
 	serialized  []byte
-	decodeFunc
+	decodeFunc  func([]byte) (serializable, error)
 }{
 	{
 		description: "Header",
-		structured: sccp.NewHeader(
-			1, // Code
-			[]byte{0xde, 0xad, 0xbe, 0xef},
-		),
-		serialized: []byte{
-			0x01, 0xde, 0xad, 0xbe, 0xef,
-		},
+		structured:  sccp.NewHeader(0, []byte{0xde, 0xad, 0xbe, 0xef}),
+		serialized:  []byte{0x00, 0xde, 0xad, 0xbe, 0xef},
 		decodeFunc: func(b []byte) (serializable, error) {
 			v, err := sccp.ParseHeader(b)
 			if err != nil {
@@ -51,26 +47,18 @@ var testcases = []struct {
 			params.NewPartyAddress( // CalledPartyAddress
 				0x12, 0, 6, 0x00, // Indicator, SPC, SSN, TT
 				0x01, 0x01, 0x04, // NP, ES, NAI
-				[]byte{ // Data
-					0x21, 0x43, 0x65, 0x87, 0x09, 0x21, 0x43, 0x65,
-				},
+				[]byte{0x21, 0x43, 0x65, 0x87, 0x09, 0x21, 0x43, 0x65},
 			),
 			params.NewPartyAddress( // CallingPartyAddress
 				0x12, 0, 7, 0x00, // Indicator, SPC, SSN, TT
 				0x01, 0x02, 0x04, // NP, ES, NAI
-				[]byte{ // Data
-					0x89, 0x67, 0x45, 0x23, 0x01,
-				},
+				[]byte{0x89, 0x67, 0x45, 0x23, 0x01},
 			),
-			[]byte{ // Data
-				0xde, 0xad, 0xbe, 0xef,
-			},
+			[]byte{0xde, 0xad, 0xbe, 0xef},
 		),
 		serialized: []byte{
-			0x09, 0x81, 0x03, 0x10, 0x1a, 0x0d, 0x12, 0x06,
-			0x00, 0x11, 0x04, 0x21, 0x43, 0x65, 0x87, 0x09,
-			0x21, 0x43, 0x65, 0x0a, 0x12, 0x07, 0x00, 0x12,
-			0x04, 0x89, 0x67, 0x45, 0x23, 0x01, 0x04, 0xde,
+			0x09, 0x81, 0x03, 0x10, 0x1a, 0x0d, 0x12, 0x06, 0x00, 0x11, 0x04, 0x21, 0x43, 0x65, 0x87, 0x09,
+			0x21, 0x43, 0x65, 0x0a, 0x12, 0x07, 0x00, 0x12, 0x04, 0x89, 0x67, 0x45, 0x23, 0x01, 0x04, 0xde,
 			0xad, 0xbe, 0xef,
 		},
 		decodeFunc: func(b []byte) (serializable, error) {
@@ -103,6 +91,7 @@ func TestMessages(t *testing.T) {
 			t.Run("Serialize", func(t *testing.T) {
 				b, err := c.structured.MarshalBinary()
 				if err != nil {
+					log.Println(errors.WithStack(err))
 					t.Fatal(err)
 				}
 
@@ -136,5 +125,31 @@ func TestMessages(t *testing.T) {
 				}
 			})
 		})
+	}
+}
+
+func TestPartialStructuredMessages(t *testing.T) {
+	for _, c := range testcases {
+		if c.description == "Header" {
+			// TODO: consider removing Header struct as it's almost useless.
+			continue
+		}
+		for i := range c.serialized {
+			partial := c.serialized[:i]
+			_, err := c.decodeFunc(partial)
+			if err != io.ErrUnexpectedEOF {
+				t.Errorf("%#x: got error %v, want unexpected EOF", partial, err)
+			}
+		}
+
+		for i := range c.serialized {
+			if i == len(c.serialized) {
+				continue
+			}
+			b := make([]byte, i)
+			if err := c.structured.(*sccp.UDT).MarshalTo(b); err != io.ErrUnexpectedEOF {
+				t.Errorf("%#x: got error %v, want unexpected EOF", b, err)
+			}
+		}
 	}
 }

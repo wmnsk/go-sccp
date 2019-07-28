@@ -12,7 +12,7 @@ import (
 	"github.com/wmnsk/go-sccp/params"
 )
 
-// UDT is SCCP Message Unit Data(UDT)
+// UDT represents a SCCP Message Unit Data(UDT).
 type UDT struct {
 	Type MsgType
 	params.ProtocolClass
@@ -55,25 +55,41 @@ func (u *UDT) MarshalBinary() ([]byte, error) {
 // MarshalTo puts the byte sequence in the byte array given as b.
 // SCCP is dependent on the Pointers when serializing, which means that it might fail when invalid Pointers are set.
 func (u *UDT) MarshalTo(b []byte) error {
-	if len(b) < 5 {
+	l := len(b)
+	if l < 5 {
 		return io.ErrUnexpectedEOF
 	}
 
 	b[0] = uint8(u.Type)
 	b[1] = uint8(u.ProtocolClass)
 	b[2] = u.Ptr1
+	if n := int(u.Ptr1); l < n {
+		return io.ErrUnexpectedEOF
+	}
 	b[3] = u.Ptr2
+	if n := int(u.Ptr2 + 3); l < n {
+		return io.ErrUnexpectedEOF
+	}
 	b[4] = u.Ptr3
+	if n := int(u.Ptr3 + 5); l < n {
+		return io.ErrUnexpectedEOF
+	}
+
 	if err := u.CalledPartyAddress.MarshalTo(b[5:int(u.Ptr2+3)]); err != nil {
 		return err
 	}
 	if err := u.CallingPartyAddress.MarshalTo(b[int(u.Ptr2+3):int(u.Ptr3+4)]); err != nil {
 		return err
 	}
-	b[u.Ptr3+4] = u.DataLength
-	copy(b[int(u.Ptr3+5):u.MarshalLen()], u.Data)
 
-	return nil
+	// succeed if the rest of buffer is longer than u.DataLength
+	b[u.Ptr3+4] = u.DataLength
+	if offset := int(u.Ptr3 + 5); len(b[offset:]) >= int(u.DataLength) {
+		copy(b[offset:], u.Data)
+		return nil
+	}
+
+	return io.ErrUnexpectedEOF
 }
 
 // ParseUDT decodes given byte sequence as a SCCP UDT.
@@ -89,36 +105,57 @@ func ParseUDT(b []byte) (*UDT, error) {
 // UnmarshalBinary sets the values retrieved from byte sequence in a SCCP UDT.
 func (u *UDT) UnmarshalBinary(b []byte) error {
 	l := len(b)
-	if l < 4 {
+	if l <= 5 { // where CdPA starts
 		return io.ErrUnexpectedEOF
 	}
 
 	u.Type = MsgType(b[0])
 	u.ProtocolClass = params.ProtocolClass(b[1])
 	u.Ptr1 = b[2]
+	if l < int(u.Ptr1) {
+		return io.ErrUnexpectedEOF
+	}
 	u.Ptr2 = b[3]
+	if l < int(u.Ptr2+3) { // where CgPA starts
+		return io.ErrUnexpectedEOF
+	}
 	u.Ptr3 = b[4]
+	if l < int(u.Ptr3+5) { // where u.Data starts
+		return io.ErrUnexpectedEOF
+	}
 
 	var err error
 	u.CalledPartyAddress, err = params.ParsePartyAddress(b[5:int(u.Ptr2+3)])
 	if err != nil {
 		return errors.Wrap(err, "failed to decode CalledPartyAddress")
 	}
-
 	u.CallingPartyAddress, err = params.ParsePartyAddress(b[int(u.Ptr2+3):int(u.Ptr3+4)])
 	if err != nil {
 		return errors.Wrap(err, "failed to decode CallingPartyAddress")
 	}
 
+	// succeed if the rest of buffer is longer than u.DataLength
 	u.DataLength = b[int(u.Ptr3+4)]
-	u.Data = b[int(u.Ptr3+5):l]
+	if offset, dataLen := int(u.Ptr3+5), int(u.DataLength); l >= offset+dataLen {
+		u.Data = b[offset : offset+dataLen]
+		return nil
+	}
 
-	return nil
+	return io.ErrUnexpectedEOF
 }
 
 // MarshalLen returns the serial length.
 func (u *UDT) MarshalLen() int {
-	return 6 + u.CalledPartyAddress.MarshalLen() + u.CallingPartyAddress.MarshalLen() + len(u.Data)
+	l := 6
+	if param := u.CalledPartyAddress; param != nil {
+		l += param.MarshalLen()
+	}
+	if param := u.CallingPartyAddress; param != nil {
+		l += param.MarshalLen()
+	}
+	l += len(u.Data)
+
+	return l
 }
 
 // SetLength sets the length in Length field.
