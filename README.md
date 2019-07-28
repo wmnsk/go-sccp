@@ -1,6 +1,6 @@
 # go-sccp: SCCP in Golang
 
-Package sccp provides simple and painless handling of SCCP(Signaling Connection Control Protocol), implemented in the Go Programming Language.
+Package sccp provides simple and painless handling of SCCP(Signaling Connection Control Part) in SS7/SIGTRAN stack, implemented in the Go Programming Language.
 
 [![CircleCI](https://circleci.com/gh/wmnsk/go-sccp.svg?style=shield)](https://circleci.com/gh/wmnsk/go-sccp)
 [![GolangCI](https://golangci.com/badges/github.com/wmnsk/go-sccp.svg)](https://golangci.com/r/github.com/wmnsk/go-sccp)
@@ -74,7 +74,7 @@ GO111MODULE=on go [test | build | run | etc...]
 | Reset cause                 | 3.13      |            |
 | Error cause                 | 3.14      |            |
 | Refusal cause               | 3.15      |            |
-| Data                        | 3.16      |            |
+| Data                        | 3.16      | Yes        |
 | Segmentation                | 3.17      |            |
 | Hop counter                 | 3.18      |            |
 | Importance                  | 3.19      |            |
