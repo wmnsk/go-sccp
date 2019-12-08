@@ -20,6 +20,7 @@ import (
 
 	"github.com/wmnsk/go-sccp"
 	"github.com/wmnsk/go-sccp/params"
+	"github.com/wmnsk/go-sccp/utils"
 
 	"github.com/wmnsk/go-m3ua"
 )
@@ -71,6 +72,15 @@ func main() {
 		log.Fatal(err)
 	}
 
+	cdPA, err := utils.StrToSwappedBytes("1234567890123456", "0")
+	if err != nil {
+		log.Fatal(err)
+	}
+	cgPA, err := utils.StrToSwappedBytes("9876543210", "0")
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	// create UDT message with CdPA, CgPA and payload
 	udt, err := sccp.NewUDT(
 		1,    // Protocol Class
@@ -78,12 +88,12 @@ func main() {
 		params.NewPartyAddress( // CalledPartyAddress: 1234567890123456
 			0x12, 0, 6, 0x00, // Indicator, SPC, SSN, TT
 			0x01, 0x01, 0x04, // NP, ES, NAI
-			[]byte{0x21, 0x43, 0x65, 0x87, 0x09, 0x21, 0x43, 0x65},
+			cdPA, // GlobalTitleInformation
 		),
 		params.NewPartyAddress( // CallingPartyAddress: 9876543210
-			0x12, 0, 7, 0x00, // Indicator, SPC, SSN, TT
+			0x12, 0, 7, 0x01, // Indicator, SPC, SSN, TT
 			0x01, 0x02, 0x04, // NP, ES, NAI
-			[]byte{0x89, 0x67, 0x45, 0x23, 0x01},
+			cgPA, // GlobalTitleInformation
 		),
 		payload, // payload
 	).MarshalBinary()
