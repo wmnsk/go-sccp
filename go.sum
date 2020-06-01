@@ -13,3 +13,5 @@ github.com/pkg/errors v0.9.1 h1:FEBLx1zS214owpjy7qsBeixbURkuhQAwrK5UwLGTwt4=
 github.com/pkg/errors v0.9.1/go.mod h1:bwawxfHBFNV+L2hUp1rHADufV3IMtnDRdf1r5NINEl0=
 github.com/wmnsk/go-m3ua v0.1.5 h1:kEKlKlKbGcOAXOi0WkgwOZ3ZAvAaP2X7Lv7PeCDlUZY=
 github.com/wmnsk/go-m3ua v0.1.5/go.mod h1:QjAeSX7tM+3ByI3aDaxadX3uL4XkmquEggHFgtWuzj4=
+github.com/wmnsk/go-m3ua v0.1.7 h1:pGkwQjXVMS1m0gMJMcTj1JxeMR3K5yR6+tso8ds+wwc=
+github.com/wmnsk/go-m3ua v0.1.7/go.mod h1:QjAeSX7tM+3ByI3aDaxadX3uL4XkmquEggHFgtWuzj4=
