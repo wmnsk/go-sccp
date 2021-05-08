@@ -3,9 +3,8 @@
 Package sccp provides simple and painless handling of SCCP(Signaling Connection Control Part) in SS7/SIGTRAN stack, implemented in the Go Programming Language.
 
 [![CircleCI](https://circleci.com/gh/wmnsk/go-sccp.svg?style=shield)](https://circleci.com/gh/wmnsk/go-sccp)
-[![GolangCI](https://golangci.com/badges/github.com/wmnsk/go-sccp.svg)](https://golangci.com/r/github.com/wmnsk/go-sccp)
 [![GoDoc](https://godoc.org/github.com/wmnsk/go-sccp?status.svg)](https://godoc.org/github.com/wmnsk/go-sccp)
-[![GitHub](https://img.shields.io/github/license/mashape/apistatus.svg)](https://github.com/wmnsk/go-sccp/blob/master/LICENSE)
+[![License](https://img.shields.io/github/license/mashape/apistatus.svg)](https://github.com/wmnsk/go-sccp/blob/master/LICENSE)
 
 ## Disclaimer
 
@@ -13,20 +12,7 @@ This is still an experimental project, and currently in its very early stage of 
 
 ## Getting started
 
-The following package should be installed before getting started.
-
-```shell-session
-go get -u github.com/google/go-cmp
-go get -u github.com/pascaldekloe/goe
-go get -u github.com/pkg/errors
-```
-
-If you use Go 1.11+, you can also use Go Modules.
-
-
-```shell-session
-GO111MODULE=on go [test | build | run | etc...]
-```
+Run `go mod tidy` to download the dependency, and you're ready to start developing.
 
 ## Supported Features
 
@@ -82,10 +68,11 @@ GO111MODULE=on go [test | build | run | etc...]
 
 ## Author(s)
 
-Yoshiyuki Kurauchi ([My Website](https://wmnsk.com/) / [Twitter](https://twitter.com/wmnskdmms))
+Yoshiyuki Kurauchi ([Website](https://wmnsk.com/) / [LinkedIn](https://www.linkedin.com/in/yoshiyuki-kurauchi/)) 
 
 I'm always open to welcome co-authors! Please feel free to talk to me.
 
 ## LICENSE
 
 [MIT](https://github.com/wmnsk/go-sccp/blob/master/LICENSE)
+
