@@ -35,8 +35,8 @@ func NewUDT(pcls int, mhandle bool, cdpa, cgpa *params.PartyAddress, data []byte
 		CallingPartyAddress: cgpa,
 		Data:                data,
 	}
-	u.Ptr2 = u.Ptr1 + uint8(cdpa.Length)
-	u.Ptr3 = u.Ptr2 + uint8(cgpa.Length)
+	u.Ptr2 = u.Ptr1 + cdpa.Length
+	u.Ptr3 = u.Ptr2 + cgpa.Length
 	u.SetLength()
 
 	return u
