@@ -11,7 +11,6 @@ import (
 	"testing"
 
 	"github.com/pascaldekloe/goe/verify"
-	"github.com/pkg/errors"
 	"github.com/wmnsk/go-sccp"
 	"github.com/wmnsk/go-sccp/params"
 )
@@ -91,7 +90,7 @@ func TestMessages(t *testing.T) {
 			t.Run("Serialize", func(t *testing.T) {
 				b, err := c.structured.MarshalBinary()
 				if err != nil {
-					log.Println(errors.WithStack(err))
+					log.Println(err)
 					t.Fatal(err)
 				}
 

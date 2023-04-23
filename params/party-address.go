@@ -6,9 +6,9 @@ package params
 
 import (
 	"encoding/binary"
+	"errors"
 	"io"
 
-	"github.com/pkg/errors"
 	"github.com/wmnsk/go-sccp/utils"
 )
 
@@ -52,7 +52,7 @@ func NewPartyAddress(gti, spc, ssn, tt, np, es, nai int, gt []byte) *PartyAddres
 func (p *PartyAddress) MarshalBinary() ([]byte, error) {
 	b := make([]byte, p.MarshalLen())
 	if err := p.MarshalTo(b); err != nil {
-		return nil, errors.Wrap(err, "failed to serialize PartyAddress")
+		return nil, err
 	}
 	return b, nil
 }

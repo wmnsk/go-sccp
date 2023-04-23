@@ -13,8 +13,6 @@ package sccp
 import (
 	"encoding"
 	"fmt"
-
-	"github.com/pkg/errors"
 )
 
 // MsgType is type of SCCP message.
@@ -91,7 +89,7 @@ func ParseMessage(b []byte) (Message, error) {
 	}
 
 	if err := m.UnmarshalBinary(b); err != nil {
-		return nil, errors.Wrap(err, "failed to decode SCCP")
+		return nil, err
 	}
 	return m, nil
 }

@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/pkg/errors"
 	"github.com/wmnsk/go-sccp/params"
 )
 
@@ -46,7 +45,7 @@ func NewUDT(pcls int, mhandle bool, cdpa, cgpa *params.PartyAddress, data []byte
 func (u *UDT) MarshalBinary() ([]byte, error) {
 	b := make([]byte, u.MarshalLen())
 	if err := u.MarshalTo(b); err != nil {
-		return nil, errors.Wrap(err, "failed to serialize UDT")
+		return nil, err
 	}
 
 	return b, nil
@@ -127,11 +126,11 @@ func (u *UDT) UnmarshalBinary(b []byte) error {
 	var err error
 	u.CalledPartyAddress, err = params.ParsePartyAddress(b[5:int(u.Ptr2+3)])
 	if err != nil {
-		return errors.Wrap(err, "failed to decode CalledPartyAddress")
+		return err
 	}
 	u.CallingPartyAddress, err = params.ParsePartyAddress(b[int(u.Ptr2+3):int(u.Ptr3+4)])
 	if err != nil {
-		return errors.Wrap(err, "failed to decode CallingPartyAddress")
+		return err
 	}
 
 	// succeed if the rest of buffer is longer than u.DataLength
