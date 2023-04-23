@@ -2,9 +2,10 @@
 
 Package sccp provides simple and painless handling of SCCP(Signaling Connection Control Part) in SS7/SIGTRAN stack, implemented in the Go Programming Language.
 
-[![CircleCI](https://circleci.com/gh/wmnsk/go-sccp.svg?style=shield)](https://circleci.com/gh/wmnsk/go-sccp)
-[![GoDoc](https://godoc.org/github.com/wmnsk/go-sccp?status.svg)](https://godoc.org/github.com/wmnsk/go-sccp)
-[![License](https://img.shields.io/github/license/mashape/apistatus.svg)](https://github.com/wmnsk/go-sccp/blob/master/LICENSE)
+[![CI status](https://github.com/wmnsk/go-sccp/actions/workflows/go.yml/badge.svg)](https://github.com/wmnsk/go-sccp/actions/workflows/go.yml)
+[![golangci-lint](https://github.com/wmnsk/go-sccp/actions/workflows/golangci-lint.yml/badge.svg)](https://github.com/wmnsk/go-sccp/actions/workflows/golangci-lint.yml)
+[![Go Reference](https://pkg.go.dev/badge/github.com/wmnsk/go-sccp.svg)](https://pkg.go.dev/github.com/wmnsk/go-sccp)
+[![GitHub](https://img.shields.io/github/license/mashape/apistatus.svg)](https://github.com/wmnsk/go-sccp/blob/master/LICENSE)
 
 ## Disclaimer
 
@@ -75,4 +76,3 @@ I'm always open to welcome co-authors! Please feel free to talk to me.
 ## LICENSE
 
 [MIT](https://github.com/wmnsk/go-sccp/blob/master/LICENSE)
-
