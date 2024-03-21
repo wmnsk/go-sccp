@@ -105,7 +105,7 @@ func ParsePartyAddress(b []byte) (*PartyAddress, error) {
 
 // UnmarshalBinary sets the values retrieved from byte sequence in a SCCP common header.
 func (p *PartyAddress) UnmarshalBinary(b []byte) error {
-	if len(b) < 3 {
+	if len(b) < 2 {
 		return io.ErrUnexpectedEOF
 	}
 	p.Length = b[0]
@@ -126,6 +126,9 @@ func (p *PartyAddress) UnmarshalBinary(b []byte) error {
 	if p.HasSSN() {
 		p.SubsystemNumber = b[offset]
 		offset++
+	}
+
+	if p.GTI() != 0 {
 		if offset >= len(b) {
 			return io.ErrUnexpectedEOF
 		}

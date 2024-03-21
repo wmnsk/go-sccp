@@ -69,6 +69,35 @@ var testcases = []struct {
 			return v, nil
 		},
 	},
+	{
+		description: "UDT-2Bytes-PartyAddress",
+		structured: sccp.NewUDT(
+			1,    // Protocol Class
+			true, // Message handling
+			params.NewPartyAddress( // CalledPartyAddress: 1234567890123456
+				0x42, 0, 6, 0x00, // Indicator, SPC, SSN, TT
+				0x00, 0x00, 0x00, // NP, ES, NAI
+				[]byte{}, // GlobalTitleInformation
+			),
+			params.NewPartyAddress( // CalledPartyAddress: 1234567890123456
+				0x42, 0, 7, 0x00, // Indicator, SPC, SSN, TT
+				0x00, 0x00, 0x00, // NP, ES, NAI
+				[]byte{}, // GlobalTitleInformation
+			),
+			[]byte{},
+		),
+		serialized: []byte{
+			0x09, 0x81, 0x03, 0x05, 0x07, 0x02, 0x42, 0x06, 0x02, 0x42, 0x07, 0x00,
+		},
+		decodeFunc: func(b []byte) (serializable, error) {
+			v, err := sccp.ParseUDT(b)
+			if err != nil {
+				return nil, err
+			}
+
+			return v, nil
+		},
+	},
 }
 
 func TestMessages(t *testing.T) {
