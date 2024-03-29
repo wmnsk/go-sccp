@@ -77,14 +77,14 @@ var testcases = []struct {
 			params.NewPartyAddress( // CalledPartyAddress: 1234567890123456
 				0x42, 0, 6, 0x00, // Indicator, SPC, SSN, TT
 				0x00, 0x00, 0x00, // NP, ES, NAI
-				[]byte{}, // GlobalTitleInformation
+				nil, // GlobalTitleInformation
 			),
 			params.NewPartyAddress( // CalledPartyAddress: 1234567890123456
 				0x42, 0, 7, 0x00, // Indicator, SPC, SSN, TT
 				0x00, 0x00, 0x00, // NP, ES, NAI
-				[]byte{}, // GlobalTitleInformation
+				nil, // GlobalTitleInformation
 			),
-			[]byte{},
+			nil,
 		),
 		serialized: []byte{
 			0x09, 0x81, 0x03, 0x05, 0x07, 0x02, 0x42, 0x06, 0x02, 0x42, 0x07, 0x00,

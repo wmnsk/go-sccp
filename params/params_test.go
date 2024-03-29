@@ -46,6 +46,24 @@ var testcases = []struct {
 
 			return v, nil
 		},
+	}, {
+		description: "PartyAddress/2-bytes",
+		structured: params.NewPartyAddress(
+			0x42, 0, 6, 0x00, // Indicator, SPC, SSN, TT
+			0x00, 0x00, 0x00, // NP, ES, NAI
+			nil, // GlobalTitleInformation
+		),
+		serialized: []byte{
+			0x02, 0x42, 0x06,
+		},
+		decodeFunc: func(b []byte) (serializable, error) {
+			v, err := params.ParsePartyAddress(b)
+			if err != nil {
+				return nil, err
+			}
+
+			return v, nil
+		},
 	},
 }
 
