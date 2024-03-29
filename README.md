@@ -1,6 +1,6 @@
-# go-sccp: SCCP in Golang
+# go-sccp
 
-Package sccp provides simple and painless handling of SCCP(Signaling Connection Control Part) in SS7/SIGTRAN stack, implemented in the Go Programming Language.
+Package sccp provides simple and painless handling of SCCP (Signaling Connection Control Part) in SS7/SIGTRAN stack, implemented in the Go Programming Language.
 
 [![CI status](https://github.com/wmnsk/go-sccp/actions/workflows/go.yml/badge.svg)](https://github.com/wmnsk/go-sccp/actions/workflows/go.yml)
 [![golangci-lint](https://github.com/wmnsk/go-sccp/actions/workflows/golangci-lint.yml/badge.svg)](https://github.com/wmnsk/go-sccp/actions/workflows/golangci-lint.yml)
@@ -69,9 +69,7 @@ Run `go mod tidy` to download the dependency, and you're ready to start developi
 
 ## Author(s)
 
-Yoshiyuki Kurauchi ([Website](https://wmnsk.com/) / [LinkedIn](https://www.linkedin.com/in/yoshiyuki-kurauchi/)) 
-
-I'm always open to welcome co-authors! Please feel free to talk to me.
+Yoshiyuki Kurauchi ([Website](https://wmnsk.com/)) 
 
 ## LICENSE
 
