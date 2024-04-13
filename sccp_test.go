@@ -8,6 +8,7 @@ import (
 	"encoding"
 	"io"
 	"log"
+	"strings"
 	"testing"
 
 	"github.com/pascaldekloe/goe/verify"
@@ -98,6 +99,32 @@ var testcases = []struct {
 			return v, nil
 		},
 	},
+	{
+		description: "SCMG SSA",
+		structured:  sccp.NewSCMG(sccp.SCMGTypeSSA, 9, 405, 0, 0),
+		serialized:  []byte{0x1, 0x09, 0x95, 0x01, 0x00},
+		decodeFunc: func(b []byte) (serializable, error) {
+			v, err := sccp.ParseSCMG(b)
+			if err != nil {
+				return nil, err
+			}
+
+			return v, nil
+		},
+	},
+	{
+		description: "SCMG SSC",
+		structured:  sccp.NewSCMG(sccp.SCMGTypeSSC, 9, 405, 0, 4),
+		serialized:  []byte{0x6, 0x09, 0x95, 0x01, 0x00, 0x04},
+		decodeFunc: func(b []byte) (serializable, error) {
+			v, err := sccp.ParseSCMG(b)
+			if err != nil {
+				return nil, err
+			}
+
+			return v, nil
+		},
+	},
 }
 
 func TestMessages(t *testing.T) {
@@ -139,6 +166,9 @@ func TestMessages(t *testing.T) {
 				if _, ok := c.structured.(*sccp.Header); ok {
 					return
 				}
+				if _, ok := c.structured.(*sccp.SCMG); ok {
+					return
+				}
 
 				decoded, err := sccp.ParseMessage(c.serialized)
 				if err != nil {
@@ -158,7 +188,7 @@ func TestMessages(t *testing.T) {
 
 func TestPartialStructuredMessages(t *testing.T) {
 	for _, c := range testcases {
-		if c.description == "Header" {
+		if c.description == "Header" || strings.Contains(c.description, "SCMG") {
 			// TODO: consider removing Header struct as it's almost useless.
 			continue
 		}
