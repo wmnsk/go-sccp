@@ -50,7 +50,9 @@ func (msg *CR) UnmarshalBinary(b []byte) error {
 	}
 
 	msg.Type = MsgType(b[0])
-	msg.SourceLocalReference.Read(b[1:4])
+	if err := msg.SourceLocalReference.Read(b[1:4]); err != nil {
+		return err
+	}
 	msg.ProtocolClass = params.ProtocolClass(b[4])
 
 	msg.mptr = b[5]
