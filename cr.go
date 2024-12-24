@@ -72,6 +72,9 @@ func (msg *CR) UnmarshalBinary(b []byte) error {
 	if msg.CalledPartyAddress, err = params.ParsePartyAddress(b[5+msg.mptr : 6+msg.optr]); err != nil {
 		return err
 	}
+	if msg.optr == 0 {
+		return nil
+	}
 	return msg.parseOptional(b[6+msg.optr:])
 }
 
