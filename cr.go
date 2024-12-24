@@ -1,6 +1,8 @@
 package sccp
 
 import (
+	"encoding/hex"
+	"fmt"
 	"io"
 
 	"github.com/wmnsk/go-sccp/params"
@@ -25,10 +27,12 @@ type CR struct {
 	params.ProtocolClass
 	CalledPartyAddress *params.PartyAddress
 
-	Data                *params.Optional // because I do really need it
-	CallingPartyAddress *params.PartyAddress
-
 	Opts []*params.Optional // all others
+
+	// just pointers, not used for Marshal-ing,  I kust really need these two
+	// similar objects are expected to be found in Opts
+	Data                *params.Optional
+	CallingPartyAddress *params.PartyAddress
 
 	mptr uint8
 	optr uint8
@@ -110,4 +114,65 @@ func (msg *CR) parseOptional(b []byte) error {
 	}
 
 	return nil
+}
+
+// MarshalBinary returns the byte sequence generated from a UDT instance.
+func (msg *CR) MarshalBinary() ([]byte, error) {
+	b := make([]byte, msg.MarshalLen())
+	if err := msg.MarshalTo(b); err != nil {
+		return nil, err
+	}
+
+	return b, nil
+}
+
+func (msg *CR) MarshalLen() int {
+	l := 5 + 2 + 1 // fixed + ptrs + last optional
+	for _, v := range msg.Opts {
+		l += int(v.Len) + 2
+	}
+	l += int(msg.CalledPartyAddress.Length) + 1
+
+	return l
+}
+
+func (msg *CR) MarshalTo(b []byte) error {
+	b[0] = uint8(msg.Type)
+	msg.SourceLocalReference.Read(b[1:4])
+	b[4] = byte(msg.ProtocolClass)
+	b[5] = 2
+	b[6] = msg.CalledPartyAddress.Length + 2
+	if err := msg.CalledPartyAddress.MarshalTo(b[7 : 7+int(msg.CalledPartyAddress.Length)+1]); err != nil {
+		return err
+	}
+	p := 6 + msg.CalledPartyAddress.Length + 1 + 1
+	for i := 0; i < len(msg.Opts); i++ {
+		b[p] = msg.Opts[i].Tag
+		b[p+1] = msg.Opts[i].Len
+		copy(b[p+2:], msg.Opts[i].Value)
+
+		p += msg.Opts[i].Len + 2
+	}
+	return nil
+}
+
+func (msg *CR) String() string {
+	s := fmt.Sprintf("{Type: CR, CalledPartyAddress: %v", msg.CalledPartyAddress)
+	if msg.CallingPartyAddress != nil {
+		s += fmt.Sprintf(", CallingPartyAddress: %v", msg.CallingPartyAddress)
+	}
+	if msg.Data != nil {
+		s += fmt.Sprintf(", DataLength: %d, Data: %s", msg.Data.Len, hex.EncodeToString(msg.Data.Value))
+	}
+
+	return s + "}"
+}
+
+// MessageType returns the Message Type in int.
+func (msg *CR) MessageType() MsgType {
+	return msg.Type
+}
+
+func (msg *CR) MessageTypeName() string {
+	return "CR"
 }

@@ -59,8 +59,9 @@ type Message interface {
 func ParseMessage(b []byte) (Message, error) {
 	var m Message
 	switch MsgType(b[0]) {
+	case MsgTypeCR:
+		m = &CR{}
 	/* TODO: implement!
-	case CR:
 	case CC:
 	case CREF:
 	case RLSD:
