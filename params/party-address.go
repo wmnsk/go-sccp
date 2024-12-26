@@ -6,7 +6,7 @@ package params
 
 import (
 	"encoding/binary"
-	"errors"
+	"fmt"
 	"io"
 
 	"github.com/wmnsk/go-sccp/utils"
@@ -18,33 +18,69 @@ type PartyAddress struct {
 	Indicator          uint8
 	SignalingPointCode uint16
 	SubsystemNumber    uint8
-	GlobalTitle
+	*GlobalTitle
 }
 
-// GlobalTitle is a GlobalTitle inside the Called/Calling Party Address.
-type GlobalTitle struct {
-	TranslationType          uint8
-	NumberingPlan            int // 1/2 Octet
-	EncodingScheme           int // 1/2 Octet
-	NatureOfAddressIndicator uint8
-	GlobalTitleInfo          []byte
+// NewAddressIndicator creates a new AddressIndicator, which is meant to be used in
+// NewPartyAddress as the first argument.
+//
+// The last bit, which is "reserved for national use", is always set to 0.
+// You can set the bit to 1 by doing `| 0b10000000` to the result of this function.
+func NewAddressIndicator(hasPC, hasSSN, routeOnSSN bool, gti GlobalTitleIndicator) uint8 {
+	var ai uint8
+	if hasPC {
+		ai |= 0b00000001
+	}
+	if hasSSN {
+		ai |= 0b00000010
+	}
+	if routeOnSSN {
+		ai |= 0b01000000
+	}
+	ai |= uint8(gti) << 2
+
+	return ai
 }
 
 // NewPartyAddress creates a new PartyAddress including GlobalTitle.
-func NewPartyAddress(gti, spc, ssn, tt, np, es, nai int, gt []byte) *PartyAddress {
-	p := &PartyAddress{
-		Indicator:          uint8(gti),
-		SignalingPointCode: uint16(spc),
-		SubsystemNumber:    uint8(ssn),
-		GlobalTitle: GlobalTitle{
-			TranslationType:          uint8(tt),
-			NumberingPlan:            np,
-			EncodingScheme:           es,
-			NatureOfAddressIndicator: uint8(nai),
-			GlobalTitleInfo:          gt,
-		},
+// Deprecated: Use NewPartyAddressTyped instead.
+func NewPartyAddress(ai, spc, ssn, tt, np, es, nai int, addr []byte) *PartyAddress {
+	var globalTitle *GlobalTitle
+	gti := gti(ai)
+	if gti == 0 {
+		globalTitle = nil
+	} else {
+		globalTitle = NewGlobalTitle(
+			gti,
+			TranslationType(tt),
+			NumberingPlan(np),
+			EncodingScheme(es),
+			NatureOfAddressIndicator(nai),
+			addr,
+		)
 	}
-	p.Length = uint8(p.MarshalLen() - 1)
+	return NewPartyAddressTyped(uint8(ai), uint16(spc), uint8(ssn), globalTitle)
+}
+
+// NewPartyAddress creates a new PartyAddress from properly-typed values.
+//
+// The given SPC and SSN are set to 0 if the corresponding bit is not properly set in the
+// AddressIndicator. Use NewAddressIndicator to create a proper AddressIndicator.
+func NewPartyAddressTyped(ai uint8, spc uint16, ssn uint8, gt *GlobalTitle) *PartyAddress {
+	p := &PartyAddress{
+		Indicator:   ai,
+		GlobalTitle: gt,
+	}
+
+	if p.HasPC() {
+		p.SignalingPointCode = spc
+	}
+
+	if p.HasSSN() {
+		p.SubsystemNumber = ssn
+	}
+
+	p.SetLength()
 	return p
 }
 
@@ -71,25 +107,10 @@ func (p *PartyAddress) MarshalTo(b []byte) error {
 		offset++
 	}
 
-	switch p.GTI() {
-	case 1:
-		b[offset] = p.NatureOfAddressIndicator
-		offset++
-	case 2:
-		b[offset] = p.TranslationType
-		offset++
-	case 3:
-		b[offset] = p.TranslationType
-		b[offset+1] = uint8(p.NumberingPlan<<4 | p.EncodingScheme)
-		offset += 2
-	case 4:
-		b[offset] = p.TranslationType
-		b[offset+1] = uint8(p.NumberingPlan<<4 | p.EncodingScheme)
-		b[offset+2] = p.NatureOfAddressIndicator
-		offset += 3
+	if p.GlobalTitle != nil {
+		return p.GlobalTitle.MarshalTo(b[offset:p.MarshalLen()])
 	}
 
-	copy(b[offset:p.MarshalLen()], p.GlobalTitleInfo)
 	return nil
 }
 
@@ -109,7 +130,8 @@ func (p *PartyAddress) UnmarshalBinary(b []byte) error {
 		return io.ErrUnexpectedEOF
 	}
 	p.Length = b[0]
-	if int(p.Length) >= len(b) {
+	l := int(p.Length)
+	if l >= len(b) {
 		return io.ErrUnexpectedEOF
 	}
 	p.Indicator = b[1]
@@ -128,69 +150,32 @@ func (p *PartyAddress) UnmarshalBinary(b []byte) error {
 		offset++
 	}
 
-	if p.GTI() != 0 {
-		if offset >= len(b) {
-			return io.ErrUnexpectedEOF
-		}
+	gti := p.GTI()
+	if gti == 0 {
+		return nil
 	}
 
-	switch p.GTI() {
-	case 1:
-		p.NatureOfAddressIndicator = b[offset]
-		offset++
-	case 2:
-		p.TranslationType = b[offset]
-		offset++
-	case 3:
-		p.TranslationType = b[offset]
-		offset++
-		if offset >= len(b) {
-			return io.ErrUnexpectedEOF
-		}
-		p.NumberingPlan = int(b[offset]) >> 4 & 0xf
-		p.EncodingScheme = int(b[offset]) & 0xf
-		offset++
-	case 4:
-		p.TranslationType = b[offset]
-		offset++
-		if offset+1 >= len(b) {
-			return io.ErrUnexpectedEOF
-		}
-		p.NumberingPlan = int(b[offset]) >> 4 & 0xf
-		p.EncodingScheme = int(b[offset]) & 0xf
-		offset++
-		p.NatureOfAddressIndicator = b[offset]
-		offset++
+	gt := &GlobalTitle{GTI: gti}
+	if err := gt.UnmarshalBinary(b[offset : l+1]); err != nil {
+		return err
 	}
-
-	infoLen := 1 + int(p.Length) - offset
-	if infoLen < 0 {
-		return errors.New("sccp: party address length misfit")
-	}
-	p.GlobalTitleInfo = make([]byte, infoLen)
-	copy(p.GlobalTitleInfo, b[offset:])
+	p.GlobalTitle = gt
 
 	return nil
 }
 
 // MarshalLen returns the serial length.
 func (p *PartyAddress) MarshalLen() int {
-	l := 2 + len(p.GlobalTitleInfo)
+	l := 2
 	if p.HasPC() {
 		l += 2
 	}
 	if p.HasSSN() {
 		l++
 	}
-	switch p.GTI() {
-	case 1:
-		l++
-	case 2:
-		l++
-	case 3:
-		l += 2
-	case 4:
-		l += 3
+
+	if p.GlobalTitle != nil {
+		l = l + p.GlobalTitle.MarshalLen()
 	}
 
 	return l
@@ -198,53 +183,51 @@ func (p *PartyAddress) MarshalLen() int {
 
 // SetLength sets the length in Length field.
 func (p *PartyAddress) SetLength() {
-	l := 1 + len(p.GlobalTitleInfo)
-	if p.HasPC() {
-		l += 2
-	}
-	if p.HasSSN() {
-		l++
-	}
-	switch p.GTI() {
-	case 1:
-		l++
-	case 2:
-		l++
-	case 3:
-		l += 2
-	case 4:
-		l += 3
-	}
-
-	p.Length = uint8(l)
+	p.Length = uint8(p.MarshalLen()) - 1
 }
 
 // RouteOnGT reports whether the packet is routed on Global Title or not.
 func (p *PartyAddress) RouteOnGT() bool {
-	return (int(p.Indicator) >> 6 & 0x1) == 0
+	return (int(p.Indicator) >> 6 & 0b1) == 0
+}
+
+// RouteOnSSN reports whether the packet is routed on SSN or not.
+func (p *PartyAddress) RouteOnSSN() bool {
+	return !p.RouteOnGT()
 }
 
 // GTI returns GlobalTitleIndicator value retrieved from Indicator.
-func (p *PartyAddress) GTI() int {
-	return (int(p.Indicator) >> 2 & 0xf)
+func (p *PartyAddress) GTI() GlobalTitleIndicator {
+	return gti(int(p.Indicator))
+}
+
+func gti(ai int) GlobalTitleIndicator {
+	return GlobalTitleIndicator(ai >> 2 & 0b1111)
 }
 
 // HasSSN reports whether PartyAddress has a Subsystem Number.
 func (p *PartyAddress) HasSSN() bool {
-	return (int(p.Indicator) >> 1 & 0x1) == 1
+	return (int(p.Indicator) >> 1 & 0b1) == 1
 }
 
 // HasPC reports whether PartyAddress has a Signaling Point Code.
 func (p *PartyAddress) HasPC() bool {
-	return (int(p.Indicator) & 0x1) == 1
+	return (int(p.Indicator) & 0b1) == 1
 }
 
-// IsOddDigits reports whether GlobalTitleInfo is odd number or not.
+// IsOddDigits reports whether AddressInformation is odd number or not.
 func (p *PartyAddress) IsOddDigits() bool {
 	return p.EncodingScheme == 1
 }
 
-// GTString returns the GlobalTitleInfo in human readable string.
+// GTString returns the AddressInformation in human readable string.
 func (p *PartyAddress) GTString() string {
-	return utils.SwappedBytesToStr(p.GlobalTitleInfo, p.IsOddDigits())
+	return utils.SwappedBytesToStr(p.AddressInformation, p.IsOddDigits())
+}
+
+// String returns the PartyAddress values in human readable format.
+func (p *PartyAddress) String() string {
+	return fmt.Sprintf("{Length: %d, Indicator: %#08b, SignalingPointCode: %d, SubsystemNumber: %d, GlobalTitle: %v}",
+		p.Length, p.Indicator, p.SignalingPointCode, p.SubsystemNumber, p.GlobalTitle,
+	)
 }

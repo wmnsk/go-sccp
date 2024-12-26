@@ -28,12 +28,19 @@ var testcases = []struct {
 }{
 	{
 		description: "PartyAddress",
-		structured: params.NewPartyAddress(
-			0x12, 0, 6, 0, // GTI, SPC, SSN, TT
-			1, 1, 4, // NP, ES, NAI
-			[]byte{
-				0x21, 0x43, 0x65, 0x87, 0x09,
-			},
+		structured: params.NewPartyAddressTyped(
+			params.NewAddressIndicator(false, true, false, params.GTITTNPESNAI),
+			0, 6, // SPC, SSN
+			params.NewGlobalTitle(
+				params.GTITTNPESNAI,
+				params.TranslationType(0),
+				params.NPISDNTelephony,
+				params.ESBCDOdd,
+				params.NAIInternationalNumber,
+				[]byte{
+					0x21, 0x43, 0x65, 0x87, 0x09,
+				},
+			),
 		),
 		serialized: []byte{
 			0x0a, 0x12, 0x06, 0x00, 0x11, 0x04, 0x21, 0x43, 0x65, 0x87, 0x09,
@@ -48,10 +55,9 @@ var testcases = []struct {
 		},
 	}, {
 		description: "PartyAddress/2-bytes",
-		structured: params.NewPartyAddress(
-			0x42, 0, 6, 0x00, // Indicator, SPC, SSN, TT
-			0x00, 0x00, 0x00, // NP, ES, NAI
-			nil, // GlobalTitleInformation
+		structured: params.NewPartyAddressTyped(
+			params.NewAddressIndicator(false, true, true, params.GlobalTitleIndicator(0)),
+			0, 6, nil, // SPC, SSN, GT
 		),
 		serialized: []byte{
 			0x02, 0x42, 0x06,
