@@ -4,6 +4,7 @@ import "fmt"
 
 const (
 	DataTag      uint8 = 0x0F
+	CdPtyAddrTag uint8 = 0x03
 	CgPtyAddrTag uint8 = 0x04
 )
 

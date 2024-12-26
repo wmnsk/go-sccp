@@ -79,7 +79,6 @@ func (msg *CR) UnmarshalBinary(b []byte) error {
 }
 
 func (msg *CR) parseOptional(b []byte) error {
-	// fmt.Println(hex.EncodeToString(b))
 	p := uint8(0)
 	for p < uint8(len(b)) {
 		t := b[p]
