@@ -108,7 +108,7 @@ func (p *PartyAddress) MarshalTo(b []byte) error {
 	}
 
 	if p.GlobalTitle != nil {
-		p.GlobalTitle.MarshalTo(b[offset:p.MarshalLen()])
+		return p.GlobalTitle.MarshalTo(b[offset:p.MarshalLen()])
 	}
 
 	return nil
