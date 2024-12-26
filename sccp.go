@@ -61,9 +61,9 @@ func ParseMessage(b []byte) (Message, error) {
 	switch MsgType(b[0]) {
 	case MsgTypeCR:
 		m = &CR{}
-	/* TODO: implement!
-	case CC:
-	case CREF:
+	case MsgTypeCC:
+		m = &CC{}
+	/* TODO: implement!	case CREF:
 	case RLSD:
 	case RLC:
 	case DT1:
