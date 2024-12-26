@@ -72,29 +72,43 @@ func main() {
 		log.Fatal(err)
 	}
 
-	cdPA, err := utils.StrToSwappedBytes("1234567890123456", "0")
+	cd, err := utils.EncodeBCD("1234567890123456")
 	if err != nil {
 		log.Fatal(err)
 	}
-	cgPA, err := utils.StrToSwappedBytes("9876543210", "0")
+	cg, err := utils.EncodeBCD("9876543210")
 	if err != nil {
 		log.Fatal(err)
 	}
 
+	gti := params.GTITTNPESNAI
+	ai := params.NewAddressIndicator(false, true, false, gti)
+	cdPA := params.NewPartyAddressTyped(
+		ai, 0, 6, params.NewGlobalTitle(
+			gti,
+			params.TranslationType(0),
+			params.NPISDNTelephony,
+			params.ESBCDOdd,
+			params.NAIInternationalNumber,
+			cd,
+		),
+	)
+	cgPA := params.NewPartyAddressTyped(
+		ai, 0, 7, params.NewGlobalTitle(
+			gti,
+			params.TranslationType(1),
+			params.NPISDNMobile,
+			params.ESBCDOdd,
+			params.NAIInternationalNumber,
+			cg,
+		),
+	)
 	// create UDT message with CdPA, CgPA and payload
 	udt, err := sccp.NewUDT(
 		1,    // Protocol Class
 		true, // Message handling
-		params.NewPartyAddress( // CalledPartyAddress: 1234567890123456
-			0x12, 0, 6, 0x00, // Indicator, SPC, SSN, TT
-			0x01, 0x01, 0x04, // NP, ES, NAI
-			cdPA, // GlobalTitleInformation
-		),
-		params.NewPartyAddress( // CallingPartyAddress: 9876543210
-			0x12, 0, 7, 0x01, // Indicator, SPC, SSN, TT
-			0x01, 0x02, 0x04, // NP, ES, NAI
-			cgPA, // GlobalTitleInformation
-		),
+		cdPA,
+		cgPA,
 		payload, // payload
 	).MarshalBinary()
 	if err != nil {

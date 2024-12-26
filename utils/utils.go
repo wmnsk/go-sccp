@@ -9,6 +9,16 @@ import (
 	"encoding/hex"
 )
 
+// EncodeBCD encodes a string into BCD-encoded bytes.
+func EncodeBCD(s string) ([]byte, error) {
+	return StrToSwappedBytes(s, "0")
+}
+
+// DecodeBCD decodes BCD-encoded bytes into a string.
+func DecodeBCD(isOdd bool, b []byte) (string, error) {
+	return SwappedBytesToStr(b, isOdd), nil
+}
+
 // StrToSwappedBytes returns swapped bits from a byte.
 // It is used for some values where some values are represented in swapped format.
 //

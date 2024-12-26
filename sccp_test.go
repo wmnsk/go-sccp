@@ -28,31 +28,33 @@ var testcases = []struct {
 	decodeFunc  func([]byte) (serializable, error)
 }{
 	{
-		description: "Header",
-		structured:  sccp.NewHeader(0, []byte{0xde, 0xad, 0xbe, 0xef}),
-		serialized:  []byte{0x00, 0xde, 0xad, 0xbe, 0xef},
-		decodeFunc: func(b []byte) (serializable, error) {
-			v, err := sccp.ParseHeader(b)
-			if err != nil {
-				return nil, err
-			}
-
-			return v, nil
-		},
-	}, {
 		description: "UDT",
 		structured: sccp.NewUDT(
 			1,    // Protocol Class
 			true, // Message handling
-			params.NewPartyAddress( // CalledPartyAddress
-				0x12, 0, 6, 0x00, // Indicator, SPC, SSN, TT
-				0x01, 0x01, 0x04, // NP, ES, NAI
-				[]byte{0x21, 0x43, 0x65, 0x87, 0x09, 0x21, 0x43, 0x65},
+			params.NewPartyAddressTyped(
+				params.NewAddressIndicator(false, true, false, params.GTITTNPESNAI),
+				0, 6, // SPC, SSN
+				params.NewGlobalTitle(
+					params.GTITTNPESNAI,
+					params.TranslationType(0),
+					params.NPISDNTelephony,
+					params.ESBCDOdd,
+					params.NAIInternationalNumber,
+					[]byte{0x21, 0x43, 0x65, 0x87, 0x09, 0x21, 0x43, 0x65},
+				),
 			),
-			params.NewPartyAddress( // CallingPartyAddress
-				0x12, 0, 7, 0x00, // Indicator, SPC, SSN, TT
-				0x01, 0x02, 0x04, // NP, ES, NAI
-				[]byte{0x89, 0x67, 0x45, 0x23, 0x01},
+			params.NewPartyAddressTyped(
+				params.NewAddressIndicator(false, true, false, params.GTITTNPESNAI),
+				0, 7, // SPC, SSN
+				params.NewGlobalTitle(
+					params.GTITTNPESNAI,
+					params.TranslationType(0),
+					params.NPISDNTelephony,
+					params.ESBCDEven,
+					params.NAIInternationalNumber,
+					[]byte{0x89, 0x67, 0x45, 0x23, 0x01},
+				),
 			),
 			[]byte{0xde, 0xad, 0xbe, 0xef},
 		),
@@ -162,10 +164,6 @@ func TestMessages(t *testing.T) {
 			})
 
 			t.Run("Interface", func(t *testing.T) {
-				// Ignore *Header and Generic in this tests.
-				if _, ok := c.structured.(*sccp.Header); ok {
-					return
-				}
 				if _, ok := c.structured.(*sccp.SCMG); ok {
 					return
 				}
@@ -188,8 +186,7 @@ func TestMessages(t *testing.T) {
 
 func TestPartialStructuredMessages(t *testing.T) {
 	for _, c := range testcases {
-		if c.description == "Header" || strings.Contains(c.description, "SCMG") {
-			// TODO: consider removing Header struct as it's almost useless.
+		if strings.Contains(c.description, "SCMG") {
 			continue
 		}
 		for i := range c.serialized {
