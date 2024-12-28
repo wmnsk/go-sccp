@@ -6,11 +6,12 @@ import (
 	"io"
 
 	"github.com/wmnsk/go-sccp/params"
+	"github.com/wmnsk/go-sccp/utils"
 )
 
 type CR struct {
 	Type                 MsgType
-	SourceLocalReference params.LocalReference
+	SourceLocalReference uint32
 	params.ProtocolClass
 	CalledPartyAddress *params.PartyAddress
 
@@ -41,9 +42,7 @@ func (msg *CR) UnmarshalBinary(b []byte) error {
 	}
 
 	msg.Type = MsgType(b[0])
-	if err := msg.SourceLocalReference.Read(b[1:4]); err != nil {
-		return err
-	}
+	msg.SourceLocalReference = utils.Uint24To32(b[1:4])
 	msg.ProtocolClass = params.ProtocolClass(b[4])
 
 	msg.mptr = b[5]
@@ -129,7 +128,7 @@ func (msg *CR) MarshalLen() int {
 
 func (msg *CR) MarshalTo(b []byte) error {
 	b[0] = uint8(msg.Type)
-	msg.SourceLocalReference.Read(b[1:4])
+	copy(b[1:4], utils.Uint32To24(msg.SourceLocalReference))
 	b[4] = byte(msg.ProtocolClass)
 	b[5] = 2
 	b[6] = msg.CalledPartyAddress.Length + 2

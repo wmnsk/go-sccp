@@ -5,12 +5,12 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/wmnsk/go-sccp/params"
+	"github.com/wmnsk/go-sccp/utils"
 )
 
 type DT1 struct {
 	Type                      MsgType
-	DestinationLocalReference params.LocalReference
+	DestinationLocalReference uint32
 	Segmenting                uint8
 	Data                      []byte
 }
@@ -31,9 +31,7 @@ func (msg *DT1) UnmarshalBinary(b []byte) error {
 	}
 
 	msg.Type = MsgType(b[0])
-	if err := msg.DestinationLocalReference.Read(b[1:4]); err != nil {
-		return err
-	}
+	msg.DestinationLocalReference = utils.Uint24To32(b[1:4])
 
 	msg.Segmenting = b[4]
 
@@ -65,7 +63,7 @@ func (msg *DT1) MarshalLen() int {
 
 func (msg *DT1) MarshalTo(b []byte) error {
 	b[0] = uint8(msg.Type)
-	msg.DestinationLocalReference.Read(b[1:4])
+	copy(b[1:4], utils.Uint32To24(msg.DestinationLocalReference))
 	b[4] = msg.Segmenting
 	b[5] = 1
 	b[6] = byte(len(msg.Data))
