@@ -8,19 +8,6 @@ import (
 	"github.com/wmnsk/go-sccp/params"
 )
 
-/*
-Message type code 2.1 F 1
-Source local reference 3.3 F 3
-Protocol class 3.6 F 1
-Called party address 3.4 V 3 minimum
-Credit 3.10 O 3
-Calling party address 3.5 O 4 minimum
-Data 3.16 O 3-130
-Hop counter 3.18 O 3
-Importance 3.19 O 3
-End of optional parameters 3.1 O 1
-*/
-
 type CR struct {
 	Type                 MsgType
 	SourceLocalReference params.LocalReference

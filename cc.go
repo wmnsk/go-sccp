@@ -7,17 +7,6 @@ import (
 	"github.com/wmnsk/go-sccp/params"
 )
 
-/*
-Message type 2.1 F 1
-Destination local reference 3.2 F 3
-Source local reference 3.3 F 3
-Protocol class 3.6 F 1
-Credit 3.10 O 3
-Called party address 3.4 O 4 minimum
-Data 3.16 O 3-130
-Importance 3.19 O 3
-End of optional parameter 3.1 O 1
-*/
 type CC struct {
 	Type                      MsgType
 	DestinationLocalReference params.LocalReference
@@ -107,7 +96,6 @@ func (msg *CC) parseOptional(b []byte) error {
 
 		msg.Opts = append(msg.Opts, o)
 		p += 2 + l
-
 	}
 
 	return nil
