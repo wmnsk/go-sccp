@@ -3,13 +3,13 @@ package sccp
 import (
 	"io"
 
-	"github.com/wmnsk/go-sccp/params"
+	"github.com/wmnsk/go-sccp/utils"
 )
 
 type RLC struct {
 	Type                      MsgType
-	DestinationLocalReference params.LocalReference
-	SourceLocalReference      params.LocalReference
+	DestinationLocalReference uint32
+	SourceLocalReference      uint32
 }
 
 func ParseRLC(b []byte) (*RLC, error) {
@@ -28,10 +28,9 @@ func (msg *RLC) UnmarshalBinary(b []byte) error {
 	}
 
 	msg.Type = MsgType(b[0])
-	if err := msg.DestinationLocalReference.Read(b[1:4]); err != nil {
-		return err
-	}
-	return msg.SourceLocalReference.Read(b[4:])
+	msg.DestinationLocalReference = utils.Uint24To32(b[1:4])
+	msg.SourceLocalReference = utils.Uint24To32(b[4:])
+	return nil
 }
 
 func (msg *RLC) MarshalBinary() ([]byte, error) {
@@ -49,8 +48,8 @@ func (msg *RLC) MarshalLen() int {
 
 func (msg *RLC) MarshalTo(b []byte) error {
 	b[0] = uint8(msg.Type)
-	msg.DestinationLocalReference.Read(b[1:4])
-	msg.SourceLocalReference.Read(b[4:])
+	copy((b[1:4]), utils.Uint32To24(msg.DestinationLocalReference))
+	copy(b[4:], utils.Uint32To24(msg.SourceLocalReference))
 	return nil
 }
 
