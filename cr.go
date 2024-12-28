@@ -107,7 +107,7 @@ func (msg *CR) parseOptional(b []byte) error {
 	return nil
 }
 
-// MarshalBinary returns the byte sequence generated from a UDT instance.
+// MarshalBinary returns the byte sequence generated from a CR instance.
 func (msg *CR) MarshalBinary() ([]byte, error) {
 	b := make([]byte, msg.MarshalLen())
 	if err := msg.MarshalTo(b); err != nil {
