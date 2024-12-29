@@ -10,7 +10,7 @@ import (
 
 var cases = []struct {
 	description   string
-	typed         ProtocolClass
+	typed         *ProtocolClass
 	bin           uint8
 	class         int
 	returnOnError bool
@@ -76,7 +76,7 @@ var cases = []struct {
 func TestProtocolClass(t *testing.T) {
 	for _, c := range cases {
 		t.Run(c.description, func(t *testing.T) {
-			if got, want := uint8(c.typed), c.bin; got != want {
+			if got, want := c.typed.Value(), c.bin; got != want {
 				t.Errorf("unexpected ProtocolClass: got: %v, want: %v", got, want)
 			}
 

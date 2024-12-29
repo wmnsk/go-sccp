@@ -13,8 +13,8 @@ import (
 
 // UDT represents a SCCP Message Unit Data(UDT).
 type UDT struct {
-	Type MsgType
-	params.ProtocolClass
+	Type                MsgType
+	ProtocolClass       *params.ProtocolClass
 	Ptr1, Ptr2, Ptr3    uint8
 	CalledPartyAddress  *params.PartyAddress
 	CallingPartyAddress *params.PartyAddress
@@ -34,8 +34,8 @@ func NewUDT(pcls int, retOnErr bool, cdpa, cgpa *params.PartyAddress, data []byt
 		CallingPartyAddress: cgpa,
 		Data:                data,
 	}
-	u.Ptr2 = u.Ptr1 + cdpa.Length
-	u.Ptr3 = u.Ptr2 + cgpa.Length
+	u.Ptr2 = u.Ptr1 + uint8(cdpa.Length())
+	u.Ptr3 = u.Ptr2 + uint8(cgpa.Length())
 	u.SetLength()
 
 	return u
@@ -60,7 +60,7 @@ func (u *UDT) MarshalTo(b []byte) error {
 	}
 
 	b[0] = uint8(u.Type)
-	b[1] = uint8(u.ProtocolClass)
+	b[1] = u.ProtocolClass.Value()
 	b[2] = u.Ptr1
 	if n := int(u.Ptr1); l < n {
 		return io.ErrUnexpectedEOF
@@ -109,26 +109,36 @@ func (u *UDT) UnmarshalBinary(b []byte) error {
 	}
 
 	u.Type = MsgType(b[0])
-	u.ProtocolClass = params.ProtocolClass(b[1])
-	u.Ptr1 = b[2]
+
+	offset := 1
+	pc := &params.ProtocolClass{}
+	n, err := pc.Read(b[offset:])
+	if err != nil {
+		return err
+	}
+	u.ProtocolClass = pc
+	offset += n
+
+	u.Ptr1 = b[offset]
 	if l < int(u.Ptr1) {
 		return io.ErrUnexpectedEOF
 	}
-	u.Ptr2 = b[3]
+	u.Ptr2 = b[offset+1]
 	if l < int(u.Ptr2+3) { // where CgPA starts
 		return io.ErrUnexpectedEOF
 	}
-	u.Ptr3 = b[4]
+	u.Ptr3 = b[offset+2]
 	if l < int(u.Ptr3+5) { // where u.Data starts
 		return io.ErrUnexpectedEOF
 	}
 
-	var err error
-	u.CalledPartyAddress, err = params.ParsePartyAddress(b[5:int(u.Ptr2+3)])
+	offset += 3
+	u.CalledPartyAddress, err = params.ParseCalledPartyAddress(b[offset:int(u.Ptr2+3)])
 	if err != nil {
 		return err
 	}
-	u.CallingPartyAddress, err = params.ParsePartyAddress(b[int(u.Ptr2+3):int(u.Ptr3+4)])
+
+	u.CallingPartyAddress, err = params.ParseCallingPartyAddress(b[int(u.Ptr2+3):int(u.Ptr3+4)])
 	if err != nil {
 		return err
 	}
@@ -164,11 +174,11 @@ func (u *UDT) SetLength() {
 
 // String returns the UDT values in human readable format.
 func (u *UDT) String() string {
-	return fmt.Sprintf("{Type: %d, CalledPartyAddress: %v, CallingPartyAddress: %v, DataLength: %d, Data: %x}",
+	return fmt.Sprintf("%s: {ProtocolClass: %s, CalledPartyAddress: %v, CallingPartyAddress: %v, Data: %x}",
 		u.Type,
+		u.ProtocolClass,
 		u.CalledPartyAddress,
 		u.CallingPartyAddress,
-		u.DataLength,
 		u.Data,
 	)
 }

@@ -7,7 +7,6 @@ package sccp_test
 import (
 	"encoding"
 	"io"
-	"log"
 	"strings"
 	"testing"
 
@@ -32,7 +31,7 @@ var testcases = []struct {
 		structured: sccp.NewUDT(
 			1,    // Protocol Class
 			true, // Message handling
-			params.NewPartyAddressTyped(
+			params.NewCalledPartyAddress(
 				params.NewAddressIndicator(false, true, false, params.GTITTNPESNAI),
 				0, 6, // SPC, SSN
 				params.NewGlobalTitle(
@@ -44,7 +43,7 @@ var testcases = []struct {
 					[]byte{0x21, 0x43, 0x65, 0x87, 0x09, 0x21, 0x43, 0x65},
 				),
 			),
-			params.NewPartyAddressTyped(
+			params.NewCallingPartyAddress(
 				params.NewAddressIndicator(false, true, false, params.GTITTNPESNAI),
 				0, 7, // SPC, SSN
 				params.NewGlobalTitle(
@@ -77,16 +76,8 @@ var testcases = []struct {
 		structured: sccp.NewUDT(
 			1,    // Protocol Class
 			true, // Message handling
-			params.NewPartyAddress( // CalledPartyAddress: 1234567890123456
-				0x42, 0, 6, 0x00, // Indicator, SPC, SSN, TT
-				0x00, 0x00, 0x00, // NP, ES, NAI
-				nil, // GlobalTitleInformation
-			),
-			params.NewPartyAddress( // CalledPartyAddress: 1234567890123456
-				0x42, 0, 7, 0x00, // Indicator, SPC, SSN, TT
-				0x00, 0x00, 0x00, // NP, ES, NAI
-				nil, // GlobalTitleInformation
-			),
+			params.NewCalledPartyAddress(0x42, 0, 6, nil),
+			params.NewCallingPartyAddress(0x42, 0, 7, nil),
 			nil,
 		),
 		serialized: []byte{
@@ -148,7 +139,6 @@ func TestMessages(t *testing.T) {
 			t.Run("Serialize", func(t *testing.T) {
 				b, err := c.structured.MarshalBinary()
 				if err != nil {
-					log.Println(err)
 					t.Fatal(err)
 				}
 

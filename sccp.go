@@ -13,6 +13,7 @@ package sccp
 import (
 	"encoding"
 	"fmt"
+	"io"
 )
 
 // MsgType is type of SCCP message.
@@ -57,6 +58,10 @@ type Message interface {
 // ParseMessage decodes the byte sequence into Message by Message Type.
 // Currently this only supports UDT type of message only.
 func ParseMessage(b []byte) (Message, error) {
+	if len(b) < 1 {
+		return nil, fmt.Errorf("invalid SCCP message %v: %w", b, io.ErrUnexpectedEOF)
+	}
+
 	var m Message
 	switch MsgType(b[0]) {
 	/* TODO: implement!

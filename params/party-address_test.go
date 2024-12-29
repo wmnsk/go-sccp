@@ -20,15 +20,15 @@ type serializable interface {
 
 type decodeFunc func([]byte) (serializable, error)
 
-var testcases = []struct {
+var cases = []struct {
 	description string
 	structured  serializable
 	serialized  []byte
 	decodeFunc
 }{
 	{
-		description: "PartyAddress",
-		structured: params.NewPartyAddressTyped(
+		description: "PartyAddress w/ GlobalTitle",
+		structured: params.NewCalledPartyAddress(
 			params.NewAddressIndicator(false, true, false, params.GTITTNPESNAI),
 			0, 6, // SPC, SSN
 			params.NewGlobalTitle(
@@ -46,37 +46,37 @@ var testcases = []struct {
 			0x0a, 0x12, 0x06, 0x00, 0x11, 0x04, 0x21, 0x43, 0x65, 0x87, 0x09,
 		},
 		decodeFunc: func(b []byte) (serializable, error) {
-			v, err := params.ParsePartyAddress(b)
+			pa, err := params.ParseCalledPartyAddress(b)
 			if err != nil {
 				return nil, err
 			}
 
-			return v, nil
+			return pa, nil
 		},
 	}, {
 		description: "PartyAddress/2-bytes",
-		structured: params.NewPartyAddressTyped(
-			params.NewAddressIndicator(false, true, true, params.GlobalTitleIndicator(0)),
+		structured: params.NewCalledPartyAddress(
+			params.NewAddressIndicator(false, true, true, params.GTINoGT),
 			0, 6, nil, // SPC, SSN, GT
 		),
 		serialized: []byte{
 			0x02, 0x42, 0x06,
 		},
 		decodeFunc: func(b []byte) (serializable, error) {
-			v, err := params.ParsePartyAddress(b)
+			pa, err := params.ParseCalledPartyAddress(b)
 			if err != nil {
 				return nil, err
 			}
 
-			return v, nil
+			return pa, nil
 		},
 	},
 }
 
-func TestStructuredParams(t *testing.T) {
+func TestPartyAddress(t *testing.T) {
 	t.Helper()
 
-	for _, c := range testcases {
+	for _, c := range cases {
 		t.Run(c.description, func(t *testing.T) {
 			t.Run("Decode", func(t *testing.T) {
 				prm, err := c.decodeFunc(c.serialized)
@@ -109,8 +109,8 @@ func TestStructuredParams(t *testing.T) {
 	}
 }
 
-func TestPartialStructuredParams(t *testing.T) {
-	for _, c := range testcases {
+func TestPartialStructuredPartyAddress(t *testing.T) {
+	for _, c := range cases {
 		for i := range c.serialized {
 			partial := c.serialized[:i]
 			_, err := c.decodeFunc(partial)

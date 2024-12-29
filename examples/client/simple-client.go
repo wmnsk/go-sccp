@@ -74,7 +74,7 @@ func main() {
 
 	gti := params.GTITTNPESNAI
 	ai := params.NewAddressIndicator(false, true, false, gti)
-	cdPA := params.NewPartyAddressTyped(
+	cdPA := params.NewCalledPartyAddress(
 		ai, 0, 6, params.NewGlobalTitle(
 			gti,
 			params.TranslationType(0),
@@ -84,7 +84,7 @@ func main() {
 			utils.MustBCDEncode("1234567890123456"),
 		),
 	)
-	cgPA := params.NewPartyAddressTyped(
+	cgPA := params.NewCallingPartyAddress(
 		ai, 0, 7, params.NewGlobalTitle(
 			gti,
 			params.TranslationType(1),
@@ -95,19 +95,22 @@ func main() {
 		),
 	)
 	// create UDT message with CdPA, CgPA and payload
-	udt, err := sccp.NewUDT(
+	udt := sccp.NewUDT(
 		1,    // Protocol Class
 		true, // Message handling
 		cdPA,
 		cgPA,
 		payload, // payload
-	).MarshalBinary()
+	)
+	u, err := udt.MarshalBinary()
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	// send once
-	if _, err := m3conn.Write(udt); err != nil {
+	i := 1
+	log.Printf("Sending %04d: %v", i, udt)
+	if _, err := m3conn.Write(u); err != nil {
 		log.Fatal(err)
 	}
 
@@ -120,7 +123,9 @@ func main() {
 			ticker.Stop()
 			os.Exit(1)
 		case <-ticker.C:
-			if _, err := m3conn.Write(udt); err != nil {
+			i++
+			log.Printf("Sending %04d: %v", i, udt)
+			if _, err := m3conn.Write(u); err != nil {
 				log.Fatal(err)
 			}
 		}

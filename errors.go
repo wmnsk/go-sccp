@@ -9,7 +9,7 @@ import (
 )
 
 // UnsupportedTypeError indicates the value in Version field is invalid.
-type UnsupportedTypeError byte
+type UnsupportedTypeError uint8
 
 // Error returns the type of receiver and some additional message.
 func (e UnsupportedTypeError) Error() string {
