@@ -8,74 +8,85 @@ import (
 	"testing"
 )
 
-var testProtocolClassBytes = []byte{
-	0x01, 0x02, 0x03, 0x04,
-	0x81, 0x82, 0x83, 0x84,
+var cases = []struct {
+	description   string
+	typed         ProtocolClass
+	bin           uint8
+	class         int
+	returnOnError bool
+}{
+	{
+		"Class 1, No ReturnOnError",
+		NewProtocolClass(1, false),
+		0x01,
+		1,
+		false,
+	},
+	{
+		"Class 2, No ReturnOnError",
+		NewProtocolClass(2, false),
+		0x02,
+		2,
+		false,
+	},
+	{
+		"Class 3, No ReturnOnError",
+		NewProtocolClass(3, false),
+		0x03,
+		3,
+		false,
+	},
+	{
+		"Class 4, No ReturnOnError",
+		NewProtocolClass(4, false),
+		0x04,
+		4,
+		false,
+	},
+	{
+		"Class 1, ReturnOnError",
+		NewProtocolClass(1, true),
+		0x81,
+		1,
+		true,
+	},
+	{
+		"Class 2, ReturnOnError",
+		NewProtocolClass(2, true),
+		0x82,
+		2,
+		true,
+	},
+	{
+		"Class 3, ReturnOnError",
+		NewProtocolClass(3, true),
+		0x83,
+		3,
+		true,
+	},
+	{
+		"Class 4, ReturnOnError",
+		NewProtocolClass(4, true),
+		0x84,
+		4,
+		true,
+	},
 }
 
-func TestNewProtocolClass(t *testing.T) {
-	protocolClasses := []ProtocolClass{
-		NewProtocolClass(1, false),
-		NewProtocolClass(2, false),
-		NewProtocolClass(3, false),
-		NewProtocolClass(4, false),
-		NewProtocolClass(1, true),
-		NewProtocolClass(2, true),
-		NewProtocolClass(3, true),
-		NewProtocolClass(4, true),
-	}
-	for i, p := range protocolClasses {
-		x := testProtocolClassBytes[i]
-		if uint8(p) != x {
-			t.Errorf("Bytes doesn't match. Want: %#x, Got: %#x at %dth", x, p, i)
-		}
-	}
-}
+func TestProtocolClass(t *testing.T) {
+	for _, c := range cases {
+		t.Run(c.description, func(t *testing.T) {
+			if got, want := uint8(c.typed), c.bin; got != want {
+				t.Errorf("unexpected ProtocolClass: got: %v, want: %v", got, want)
+			}
 
-func TestClass(t *testing.T) {
-	protocolClasses := []ProtocolClass{
-		NewProtocolClass(1, false),
-		NewProtocolClass(2, false),
-		NewProtocolClass(3, false),
-		NewProtocolClass(4, false),
-		NewProtocolClass(1, true),
-		NewProtocolClass(2, true),
-		NewProtocolClass(3, true),
-		NewProtocolClass(4, true),
-	}
-	for i, p := range protocolClasses {
-		if i < 4 {
-			if got, want := p.Class(), i+1; got != want {
-				t.Errorf("Class doesn't match. Want: %d, Got: %d when ProtocolClass is %x", want, got, p)
+			if got, want := c.typed.Class(), c.class; got != want {
+				t.Errorf("unexpected Class: got: %v, want: %v", got, want)
 			}
-		} else if i >= 4 {
-			if got, want := p.Class(), i-3; got != want {
-				t.Errorf("Class doesn't match. Want: %d, Got: %d when ProtocolClass is %x", want, got, p)
-			}
-		}
-	}
-}
 
-func TestReturnOnError(t *testing.T) {
-	protocolClasses := []ProtocolClass{
-		NewProtocolClass(1, false),
-		NewProtocolClass(2, false),
-		NewProtocolClass(3, false),
-		NewProtocolClass(4, false),
-		NewProtocolClass(1, true),
-		NewProtocolClass(2, true),
-		NewProtocolClass(3, true),
-		NewProtocolClass(4, true),
-	}
-	for i, p := range protocolClasses {
-		if i < 4 {
-			if got := p.ReturnOnError(); !got {
-				t.Errorf("ReturnOnError doesn't match. Want: %v, Got: %v when ProtocolClass is %x", false, got, p)
+			if got, want := c.typed.ReturnOnError(), c.returnOnError; got != want {
+				t.Errorf("unexpected ReturnOnError: got: %v, want: %v", got, want)
 			}
-		} else if i >= 4 {
-			if got := p.ReturnOnError(); got {
-				t.Errorf("ReturnOnError doesn't match. Want: %v, Got: %v when ProtocolClass is %x", true, got, p)
-			}
-		}
+		})
 	}
 }

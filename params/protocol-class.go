@@ -8,8 +8,8 @@ package params
 type ProtocolClass uint8
 
 // NewProtocolClass creates a new ProtocolClass.
-func NewProtocolClass(cls int, opts bool) ProtocolClass {
-	if opts {
+func NewProtocolClass(cls int, returnOnError bool) ProtocolClass {
+	if returnOnError {
 		return ProtocolClass(cls | 0x80)
 	}
 	return ProtocolClass(cls)
@@ -22,5 +22,5 @@ func (p ProtocolClass) Class() int {
 
 // ReturnOnError judges if ProtocolClass has "Return Message On Error" option.
 func (p ProtocolClass) ReturnOnError() bool {
-	return (int(p) >> 7) == 0
+	return (int(p) >> 7) == 1
 }

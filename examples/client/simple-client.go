@@ -72,15 +72,6 @@ func main() {
 		log.Fatal(err)
 	}
 
-	cd, err := utils.EncodeBCD("1234567890123456")
-	if err != nil {
-		log.Fatal(err)
-	}
-	cg, err := utils.EncodeBCD("9876543210")
-	if err != nil {
-		log.Fatal(err)
-	}
-
 	gti := params.GTITTNPESNAI
 	ai := params.NewAddressIndicator(false, true, false, gti)
 	cdPA := params.NewPartyAddressTyped(
@@ -90,7 +81,7 @@ func main() {
 			params.NPISDNTelephony,
 			params.ESBCDOdd,
 			params.NAIInternationalNumber,
-			cd,
+			utils.MustBCDEncode("1234567890123456"),
 		),
 	)
 	cgPA := params.NewPartyAddressTyped(
@@ -100,7 +91,7 @@ func main() {
 			params.NPISDNMobile,
 			params.ESBCDOdd,
 			params.NAIInternationalNumber,
-			cg,
+			utils.MustBCDEncode("9876543210"),
 		),
 	)
 	// create UDT message with CdPA, CgPA and payload

@@ -3,6 +3,8 @@ package params
 import (
 	"fmt"
 	"io"
+
+	"github.com/wmnsk/go-sccp/utils"
 )
 
 // GlobalTitle is a GlobalTitle inside the Called/Calling Party Address.
@@ -222,9 +224,19 @@ func (g *GlobalTitle) lenByGTI() int {
 	return l
 }
 
+// IsOddDigits reports whether AddressInformation is odd number or not.
+func (g *GlobalTitle) IsOddDigits() bool {
+	return g.EncodingScheme == ESBCDOdd
+}
+
 // String returns the GlobalTitle in a human-readable format.
 func (g *GlobalTitle) String() string {
 	return fmt.Sprintf("{GTI: %d, TransationType: %d, NumberingPlan: %d, EncodingScheme: %d, NatureOfAddressIndicator: %d, AddressInformation: %#x}",
 		g.GTI, g.TranslationType, g.NumberingPlan, g.EncodingScheme, g.NatureOfAddressIndicator, g.AddressInformation,
 	)
+}
+
+// Address returns the AddressInformation in a human-friendly string.
+func (g *GlobalTitle) Address() string {
+	return utils.BCDDecode(g.IsOddDigits(), g.AddressInformation)
 }

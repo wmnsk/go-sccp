@@ -23,11 +23,11 @@ type UDT struct {
 }
 
 // NewUDT creates a new UDT.
-func NewUDT(pcls int, mhandle bool, cdpa, cgpa *params.PartyAddress, data []byte) *UDT {
+func NewUDT(pcls int, retOnErr bool, cdpa, cgpa *params.PartyAddress, data []byte) *UDT {
 	u := &UDT{
 		Type: MsgTypeUDT,
 		ProtocolClass: params.NewProtocolClass(
-			pcls, mhandle,
+			pcls, retOnErr,
 		),
 		Ptr1:                3,
 		CalledPartyAddress:  cdpa,
@@ -180,15 +180,21 @@ func (u *UDT) MessageType() MsgType {
 
 // MessageTypeName returns the Message Type in string.
 func (u *UDT) MessageTypeName() string {
-	return "UDT"
+	return u.MessageType().String()
 }
 
 // CdGT returns the GT in CalledPartyAddress in human readable string.
 func (u *UDT) CdGT() string {
-	return u.CalledPartyAddress.GTString()
+	if u.CalledPartyAddress.GlobalTitle == nil {
+		return ""
+	}
+	return u.CalledPartyAddress.Address()
 }
 
 // CgGT returns the GT in CalledPartyAddress in human readable string.
 func (u *UDT) CgGT() string {
-	return u.CallingPartyAddress.GTString()
+	if u.CallingPartyAddress.GlobalTitle == nil {
+		return ""
+	}
+	return u.CallingPartyAddress.Address()
 }

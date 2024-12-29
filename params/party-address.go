@@ -8,8 +8,6 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
-
-	"github.com/wmnsk/go-sccp/utils"
 )
 
 // PartyAddress is a SCCP parameter that represents a Called/Calling Party Address.
@@ -45,20 +43,19 @@ func NewAddressIndicator(hasPC, hasSSN, routeOnSSN bool, gti GlobalTitleIndicato
 // NewPartyAddress creates a new PartyAddress including GlobalTitle.
 // Deprecated: Use NewPartyAddressTyped instead.
 func NewPartyAddress(ai, spc, ssn, tt, np, es, nai int, addr []byte) *PartyAddress {
-	var globalTitle *GlobalTitle
 	gti := gti(ai)
 	if gti == 0 {
-		globalTitle = nil
-	} else {
-		globalTitle = NewGlobalTitle(
-			gti,
-			TranslationType(tt),
-			NumberingPlan(np),
-			EncodingScheme(es),
-			NatureOfAddressIndicator(nai),
-			addr,
-		)
+		return NewPartyAddressTyped(uint8(ai), uint16(spc), uint8(ssn), nil)
 	}
+
+	globalTitle := NewGlobalTitle(
+		gti,
+		TranslationType(tt),
+		NumberingPlan(np),
+		EncodingScheme(es),
+		NatureOfAddressIndicator(nai),
+		addr,
+	)
 	return NewPartyAddressTyped(uint8(ai), uint16(spc), uint8(ssn), globalTitle)
 }
 
@@ -97,11 +94,13 @@ func (p *PartyAddress) MarshalBinary() ([]byte, error) {
 func (p *PartyAddress) MarshalTo(b []byte) error {
 	b[0] = p.Length
 	b[1] = p.Indicator
+
 	var offset = 2
 	if p.HasPC() {
 		binary.BigEndian.PutUint16(b[offset:offset+2], p.SignalingPointCode)
 		offset += 2
 	}
+
 	if p.HasSSN() {
 		b[offset] = p.SubsystemNumber
 		offset++
@@ -116,11 +115,10 @@ func (p *PartyAddress) MarshalTo(b []byte) error {
 
 // ParsePartyAddress decodes given byte sequence as a SCCP common header.
 func ParsePartyAddress(b []byte) (*PartyAddress, error) {
-	p := new(PartyAddress)
+	p := &PartyAddress{}
 	if err := p.UnmarshalBinary(b); err != nil {
 		return nil, err
 	}
-
 	return p, nil
 }
 
@@ -129,6 +127,7 @@ func (p *PartyAddress) UnmarshalBinary(b []byte) error {
 	if len(b) < 2 {
 		return io.ErrUnexpectedEOF
 	}
+
 	p.Length = b[0]
 	l := int(p.Length)
 	if l >= len(b) {
@@ -145,6 +144,7 @@ func (p *PartyAddress) UnmarshalBinary(b []byte) error {
 		p.SignalingPointCode = binary.BigEndian.Uint16(b[offset:end])
 		offset = end
 	}
+
 	if p.HasSSN() {
 		p.SubsystemNumber = b[offset]
 		offset++
@@ -170,6 +170,7 @@ func (p *PartyAddress) MarshalLen() int {
 	if p.HasPC() {
 		l += 2
 	}
+
 	if p.HasSSN() {
 		l++
 	}
@@ -213,16 +214,6 @@ func (p *PartyAddress) HasSSN() bool {
 // HasPC reports whether PartyAddress has a Signaling Point Code.
 func (p *PartyAddress) HasPC() bool {
 	return (int(p.Indicator) & 0b1) == 1
-}
-
-// IsOddDigits reports whether AddressInformation is odd number or not.
-func (p *PartyAddress) IsOddDigits() bool {
-	return p.EncodingScheme == 1
-}
-
-// GTString returns the AddressInformation in human readable string.
-func (p *PartyAddress) GTString() string {
-	return utils.SwappedBytesToStr(p.AddressInformation, p.IsOddDigits())
 }
 
 // String returns the PartyAddress values in human readable format.

@@ -15,13 +15,13 @@ type SCMGType uint8
 
 // Table 23/Q.713
 const (
-	_ SCMGType = iota
-	SCMGTypeSSA
-	SCMGTypeSSP
-	SCMGTypeSST
-	SCMGTypeSOR
-	SCMGTypeSOG
-	SCMGTypeSSC
+	_           SCMGType = iota
+	SCMGTypeSSA          // SSA
+	SCMGTypeSSP          // SSP
+	SCMGTypeSST          // SST
+	SCMGTypeSOR          // SOR
+	SCMGTypeSOG          // SOG
+	SCMGTypeSSC          // SSC
 )
 
 // SCMG represents a SCCP Management message (SCMG).
@@ -35,16 +35,14 @@ type SCMG struct {
 }
 
 // NewSCMG creates a new SCMG.
-func NewSCMG(typ SCMGType, affectedSSN uint8, affectedPC uint16, subsystemMultiplicityIndicator uint8, sccpCongestionLevel uint8) *SCMG {
-	s := &SCMG{
+func NewSCMG(typ SCMGType, assn uint8, apc uint16, smi uint8, scl uint8) *SCMG {
+	return &SCMG{
 		Type:                           typ,
-		AffectedSSN:                    affectedSSN,
-		AffectedPC:                     affectedPC,
-		SubsystemMultiplicityIndicator: subsystemMultiplicityIndicator,
-		SCCPCongestionLevel:            sccpCongestionLevel,
+		AffectedSSN:                    assn,
+		AffectedPC:                     apc,
+		SubsystemMultiplicityIndicator: smi,
+		SCCPCongestionLevel:            scl,
 	}
-
-	return s
 }
 
 // MarshalBinary returns the byte sequence generated from a SCMG instance.
@@ -123,7 +121,7 @@ func (s *SCMG) MarshalLen() int {
 
 // String returns the SCMG values in human readable format.
 func (s *SCMG) String() string {
-	return fmt.Sprintf("{Type: %d, Affected SSN: %v, Affected PC: %v, Subsystem Multiplicity Indicator: %d, SCCP Congestion Level: %d}",
+	return fmt.Sprintf("{Type: %d, AffectedSSN: %v, AffectedPC: %v, SubsystemMultiplicityIndicator: %d, SCCPCongestionLevel: %d}",
 		s.Type,
 		s.AffectedSSN,
 		s.AffectedPC,
@@ -139,5 +137,5 @@ func (s *SCMG) MessageType() SCMGType {
 
 // MessageTypeName returns the Message Type in string.
 func (s *SCMG) MessageTypeName() string {
-	return "SCMG"
+	return s.Type.String()
 }

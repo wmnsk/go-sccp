@@ -20,27 +20,27 @@ type MsgType uint8
 
 // Message Type definitions.
 const (
-	_ MsgType = iota
-	MsgTypeCR
-	MsgTypeCC
-	MsgTypeCREF
-	MsgTypeRLSD
-	MsgTypeRLC
-	MsgTypeDT1
-	MsgTypeDT2
-	MsgTypeAK
-	MsgTypeUDT
-	MsgTypeUDTS
-	MsgTypeED
-	MsgTypeEA
-	MsgTypeRSR
-	MsgTypeRSC
-	MsgTypeERR
-	MsgTypeIT
-	MsgTypeXUDT
-	MsgTypeXUDTS
-	MsgTypeLUDT
-	MsgTypeLUDTS
+	_            MsgType = iota
+	MsgTypeCR            // CR
+	MsgTypeCC            // CC
+	MsgTypeCREF          // CREF
+	MsgTypeRLSD          // RLSD
+	MsgTypeRLC           // RLC
+	MsgTypeDT1           // DT1
+	MsgTypeDT2           // DT2
+	MsgTypeAK            // AK
+	MsgTypeUDT           // UDT
+	MsgTypeUDTS          // UDTS
+	MsgTypeED            // ED
+	MsgTypeEA            // EA
+	MsgTypeRSR           // RSR
+	MsgTypeRSC           // RSC
+	MsgTypeERR           // ERR
+	MsgTypeIT            // IT
+	MsgTypeXUDT          // XUDT
+	MsgTypeXUDTS         // XUDTS
+	MsgTypeLUDT          // LUDT
+	MsgTypeLUDTS         // LUDTS
 )
 
 // Message is an interface that defines SCCP messages.
