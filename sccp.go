@@ -56,7 +56,6 @@ type Message interface {
 }
 
 // ParseMessage decodes the byte sequence into Message by Message Type.
-// Currently this only supports UDT type of message only.
 func ParseMessage(b []byte) (Message, error) {
 	if len(b) < 1 {
 		return nil, fmt.Errorf("invalid SCCP message %v: %w", b, io.ErrUnexpectedEOF)
@@ -65,29 +64,32 @@ func ParseMessage(b []byte) (Message, error) {
 	var m Message
 	switch MsgType(b[0]) {
 	/* TODO: implement!
-	case CR:
-	case CC:
-	case CREF:
-	case RLSD:
-	case RLC:
-	case DT1:
-	case DT2:
-	case AK:
+	case MsgTypeCR:
+	case MsgTypeCC:
+	case MsgTypeCREF:
+	case MsgTypeRLSD:
+	case MsgTypeRLC:
+	case MsgTypeDT1:
+	case MsgTypeDT2:
+	case MsgTypeAK:
 	*/
 	case MsgTypeUDT:
 		m = &UDT{}
 	/* TODO: implement!
-	case UDTS:
-	case ED:
-	case EA:
-	case RSR:
-	case RSC:
-	case ERR:
-	case IT:
-	case XUDT:
-	case XUDTS:
-	case LUDT:
-	case LUDTS:
+	case MsgTypeUDTS:
+	case MsgTypeED:
+	case MsgTypeEA:
+	case MsgTypeRSR:
+	case MsgTypeRSC:
+	case MsgTypeERR:
+	case MsgTypeIT:
+	*/
+	case MsgTypeXUDT:
+		m = &XUDT{}
+	/* TODO: implement!
+	case MsgTypeXUDTS:
+	case MsgTypeLUDT:
+	case MsgTypeLUDTS:
 	*/
 	default:
 		return nil, UnsupportedTypeError(b[0])

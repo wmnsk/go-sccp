@@ -7,6 +7,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
+	"log"
 
 	"github.com/wmnsk/go-sccp/utils"
 )
@@ -169,6 +170,7 @@ func (e *EndOfOptionalParameters) Read(b []byte) (int, error) {
 		return 0, io.ErrUnexpectedEOF
 	}
 
+	e.paramType = PTypeO
 	e.code = PCodeEndOfOptionalParameters
 	e.length = n
 	e.value = b[0]
@@ -190,6 +192,11 @@ func (e *EndOfOptionalParameters) Write(b []byte) (int, error) {
 	return e.length, nil
 }
 
+// MarshalLen returns the serial length of EndOfOptionalParameters.
+func (e *EndOfOptionalParameters) MarshalLen() int {
+	return e.length
+}
+
 // Value returns the EndOfOptionalParameters in uint8.
 func (e *EndOfOptionalParameters) Value() uint8 {
 	return e.value
@@ -202,7 +209,7 @@ func (e *EndOfOptionalParameters) Code() ParameterNameCode {
 
 // String returns the EndOfOptionalParameters in string.
 func (e *EndOfOptionalParameters) String() string {
-	return fmt.Sprintf("%s: %d", e.code, e.value)
+	return fmt.Sprintf("{%s (%s): %d}", e.code, e.paramType, e.value)
 }
 
 // LocalReference represents the Destination/Source Local Reference.
@@ -258,6 +265,18 @@ func parseLocalReference(c ParameterNameCode, b []byte) (*LocalReference, error)
 	return l, nil
 }
 
+// AsDestination makes the LocalReference a Destination Local Reference.
+func (l *LocalReference) AsDestination() *LocalReference {
+	l.code = PCodeDestinationLocalReference
+	return l
+}
+
+// AsSource makes the LocalReference a Source Local Reference.
+func (l *LocalReference) AsSource() *LocalReference {
+	l.code = PCodeSourceLocalReference
+	return l
+}
+
 // Read sets the values retrieved from byte sequence in a LocalReference.
 func (l *LocalReference) Read(b []byte) (int, error) {
 	n := 3
@@ -299,9 +318,9 @@ func (l *LocalReference) Code() ParameterNameCode {
 // String returns the LocalReference in string.
 func (l *LocalReference) String() string {
 	if l.code == PCodeDestinationLocalReference || l.code == PCodeSourceLocalReference {
-		return fmt.Sprintf("%s: %d", l.code, l.Uint32())
+		return fmt.Sprintf("{%s (%s): %d}", l.code, l.paramType, l.Uint32())
 	}
-	return fmt.Sprintf("%s: %x", "(Destination or Source) local reference", l.value)
+	return fmt.Sprintf("{%s (%s): %d}", "(Destination or Source) local reference", l.paramType, l.Uint32())
 }
 
 // PartyAddress is a SCCP parameter that represents a Called/Calling Party Address.
@@ -341,6 +360,10 @@ func NewAddressIndicator(hasPC, hasSSN, routeOnSSN bool, gti GlobalTitleIndicato
 //
 // The given SPC and SSN are set to 0 if the corresponding bit is not properly set in the
 // AddressIndicator. Use NewAddressIndicator to create a proper AddressIndicator.
+//
+// When you are aware of the type of PartyAddress you are creating, you can use
+// NewCalled/CallingPartyAddress to create a PartyAddress with the correct code.
+// Otherwise, you can use AsCalled/Calling to set the code after creating a PartyAddress.
 func NewPartyAddress(ai uint8, spc uint16, ssn uint8, gt *GlobalTitle) *PartyAddress {
 	p := &PartyAddress{
 		paramType:   PTypeV,
@@ -374,12 +397,21 @@ func NewCallingPartyAddress(ai uint8, spc uint16, ssn uint8, gt *GlobalTitle) *P
 	return p
 }
 
+// AsCalled makes the PartyAddress a Called Party Address.
+func (p *PartyAddress) AsCalled() *PartyAddress {
+	p.code = PCodeCalledPartyAddress
+	return p
+}
+
+// AsCalling makes the PartyAddress a Calling Party Address.
+func (p *PartyAddress) AsCalling() *PartyAddress {
+	p.code = PCodeCallingPartyAddress
+	return p
+}
+
 // AsOptional makes the PartyAddress an optional parameter.
 func (p *PartyAddress) AsOptional() *PartyAddress {
-	if p.paramType != PTypeO {
-		p.paramType = PTypeO
-		p.length += 2
-	}
+	p.paramType = PTypeO
 	return p
 }
 
@@ -422,10 +454,15 @@ func parsePartyAddress(ptype ParameterType, code ParameterNameCode, b []byte) (*
 
 // Read sets the values retrieved from byte sequence in a PartyAddress.
 func (p *PartyAddress) Read(b []byte) (int, error) {
-	if p.paramType == PTypeV {
-		return p.read(b)
+	if p.paramType == PTypeO {
+		return p.readOptional(b)
 	}
-	return p.readOptional(b)
+
+	// force to read as V if it's not O
+	if p.paramType == PTypeF {
+		p.paramType = PTypeV
+	}
+	return p.read(b)
 }
 
 func (p *PartyAddress) read(b []byte) (int, error) {
@@ -539,31 +576,6 @@ func (p *PartyAddress) writeOptional(b []byte) (int, error) {
 	return n + 1, nil
 }
 
-// MarshalBinary returns the byte sequence generated from a PartyAddress instance.
-func (p *PartyAddress) MarshalBinary() ([]byte, error) {
-	b := make([]byte, p.MarshalLen())
-	if err := p.MarshalTo(b); err != nil {
-		return nil, err
-	}
-	return b, nil
-}
-
-// MarshalTo puts the byte sequence in the byte array given as b.
-func (p *PartyAddress) MarshalTo(b []byte) error {
-	if _, err := p.Write(b); err != nil {
-		return err
-	}
-	return nil
-}
-
-// UnmarshalBinary sets the values retrieved from byte sequence in a SCCP common header.
-func (p *PartyAddress) UnmarshalBinary(b []byte) error {
-	if _, err := p.Read(b); err != nil {
-		return err
-	}
-	return nil
-}
-
 // MarshalLen returns the serial length.
 func (p *PartyAddress) MarshalLen() int {
 	l := 2
@@ -616,11 +628,6 @@ func (p *PartyAddress) HasPC() bool {
 	return (int(p.Indicator) & 0b1) == 1
 }
 
-// Length returns the length of PartyAddress.
-func (p *PartyAddress) Length() int {
-	return p.length
-}
-
 // Code returns the PartyAddress in ParameterNameCode.
 func (p *PartyAddress) Code() ParameterNameCode {
 	return p.code
@@ -628,7 +635,7 @@ func (p *PartyAddress) Code() ParameterNameCode {
 
 // String returns the PartyAddress values in human readable format.
 func (p *PartyAddress) String() string {
-	return fmt.Sprintf("%s (%s): {length: %d, Indicator: %#08b, SignalingPointCode: %d, SubsystemNumber: %d, GlobalTitle: %v}",
+	return fmt.Sprintf("{%s (%s): {length: %d, Indicator: %#08b, SignalingPointCode: %d, SubsystemNumber: %d, GlobalTitle: %v}}",
 		p.code, p.paramType, p.length, p.Indicator, p.SignalingPointCode, p.SubsystemNumber, p.GlobalTitle,
 	)
 }
@@ -703,7 +710,10 @@ func (p *ProtocolClass) Code() ParameterNameCode {
 
 // String returns the ProtocolClass in string.
 func (p *ProtocolClass) String() string {
-	return fmt.Sprintf("%s: {Class: %d, ReturnOnError: %v}", p.code, p.Class(), p.ReturnOnError())
+	return fmt.Sprintf(
+		"{%s (%s): {Class: %d, ReturnOnError: %v}}",
+		p.code, p.paramType, p.Class(), p.ReturnOnError(),
+	)
 }
 
 // SegmentingReassembling represents the Segmenting/Reassembling.
@@ -770,7 +780,7 @@ func (s *SegmentingReassembling) Code() ParameterNameCode {
 
 // String returns the SegmentingReassembling in string.
 func (s *SegmentingReassembling) String() string {
-	return fmt.Sprintf("%s: %d", s.code, s.value)
+	return fmt.Sprintf("{%s (%s): %d}", s.code, s.paramType, s.value)
 }
 
 // ReceiveSequenceNumber represents the Receive Sequence Number.
@@ -782,12 +792,13 @@ type ReceiveSequenceNumber struct {
 }
 
 // NewReceiveSequenceNumber creates a new ReceiveSequenceNumber.
+// The value is masked out to 0b11111110 since the LSB is spare.
 func NewReceiveSequenceNumber(v uint8) *ReceiveSequenceNumber {
 	return &ReceiveSequenceNumber{
 		paramType: PTypeF,
 		code:      PCodeReceiveSequenceNumber,
 		length:    1,
-		value:     v & 0b01111111,
+		value:     v & 0b11111110,
 	}
 }
 
@@ -811,7 +822,7 @@ func (r *ReceiveSequenceNumber) Write(b []byte) (int, error) {
 		return 0, io.ErrUnexpectedEOF
 	}
 
-	b[0] = r.value
+	b[0] = r.value & 0b11111110
 	return r.length, nil
 }
 
@@ -827,7 +838,7 @@ func (r *ReceiveSequenceNumber) Code() ParameterNameCode {
 
 // String returns the ReceiveSequenceNumber in string.
 func (r *ReceiveSequenceNumber) String() string {
-	return fmt.Sprintf("%s: %d", r.code, r.value)
+	return fmt.Sprintf("{%s (%s): %d}", r.code, r.paramType, r.value)
 }
 
 // SequencingSegmenting represents the Sequencing/Segmenting.
@@ -885,12 +896,6 @@ func (s *SequencingSegmenting) Write(b []byte) (int, error) {
 	return s.length, nil
 }
 
-// Value returns the SequencingSegmenting in *SequencingSegmenting.
-// This is here to implement the Parameter interface, but it won't be used.
-func (s *SequencingSegmenting) Value() *SequencingSegmenting {
-	return s
-}
-
 // Code returns the SequencingSegmenting in ParameterNameCode.
 func (s *SequencingSegmenting) Code() ParameterNameCode {
 	return s.code
@@ -899,7 +904,7 @@ func (s *SequencingSegmenting) Code() ParameterNameCode {
 // String returns the SequencingSegmenting in string.
 func (s *SequencingSegmenting) String() string {
 	return fmt.Sprintf(
-		"%s: {SendSequenceNumber=%d, ReceiveSequenceNumber=%d, MoreData=%t}",
+		"{%s: {SendSequenceNumber=%d, ReceiveSequenceNumber=%d, MoreData=%t}}",
 		s.code, s.SendSequenceNumber, s.ReceiveSequenceNumber, s.MoreData,
 	)
 }
@@ -925,7 +930,6 @@ func NewCredit(v uint8) *Credit {
 // AsOptional makes the Credit an optional parameter.
 func (c *Credit) AsOptional() *Credit {
 	c.paramType = PTypeO
-	c.length = 3
 	return c
 }
 
@@ -963,8 +967,8 @@ func (c *Credit) readOptional(b []byte) (int, error) {
 	}
 
 	c.length = int(b[1])
-	if c.length != n {
-		logf("%s: invalid length: expected %d, got %d", PCodeCredit, n, c.length)
+	if c.length != n-2 {
+		logf("%s: invalid length: expected %d, got %d", PCodeCredit, n-2, c.length)
 	}
 
 	c.value = b[2]
@@ -1014,7 +1018,7 @@ func (c *Credit) Code() ParameterNameCode {
 
 // String returns the Credit in string.
 func (c *Credit) String() string {
-	return fmt.Sprintf("%s: %d", c.code, c.value)
+	return fmt.Sprintf("{%s (%s): %d}", c.code, c.paramType, c.value)
 }
 
 // ReleaseCause represents the Release Cause.
@@ -1095,7 +1099,7 @@ func (r *ReleaseCause) Code() ParameterNameCode {
 
 // String returns the ReleaseCause in string.
 func (r *ReleaseCause) String() string {
-	return fmt.Sprintf("%s: %s", r.code, r.value)
+	return fmt.Sprintf("{%s (%s): %s}", r.code, r.paramType, r.value)
 }
 
 // ReturnCause represents the Return Cause.
@@ -1174,7 +1178,7 @@ func (r *ReturnCause) Code() ParameterNameCode {
 
 // String returns the ReturnCause in string.
 func (r *ReturnCause) String() string {
-	return fmt.Sprintf("%s: %s", r.code, r.value)
+	return fmt.Sprintf("{%s (%s): %s}", r.code, r.paramType, r.value)
 }
 
 // ResetCause represents the Reset Cause.
@@ -1251,7 +1255,7 @@ func (r *ResetCause) Code() ParameterNameCode {
 
 // String returns the ResetCause in string.
 func (r *ResetCause) String() string {
-	return fmt.Sprintf("%s: %s", r.code, r.value)
+	return fmt.Sprintf("{%s (%s): %s}", r.code, r.paramType, r.value)
 }
 
 // ErrorCause represents the Error Cause.
@@ -1320,7 +1324,7 @@ func (e *ErrorCause) Code() ParameterNameCode {
 
 // String returns the ErrorCause in string.
 func (e *ErrorCause) String() string {
-	return fmt.Sprintf("%s: %s", e.code, e.value)
+	return fmt.Sprintf("{%s (%s): %s}", e.code, e.paramType, e.value)
 }
 
 // RefusalCause represents the Refusal Cause.
@@ -1404,7 +1408,7 @@ func (r *RefusalCause) Code() ParameterNameCode {
 
 // String returns the RefusalCause in string.
 func (r *RefusalCause) String() string {
-	return fmt.Sprintf("%s: %s", r.code, r.value)
+	return fmt.Sprintf("{%s (%s): %s}", r.code, r.paramType, r.value)
 }
 
 // Data represents the Data.
@@ -1427,10 +1431,7 @@ func NewData(v []byte) *Data {
 
 // AsOptional makes the Data an optional parameter.
 func (d *Data) AsOptional() *Data {
-	if d.paramType != PTypeO {
-		d.paramType = PTypeO
-		d.length += 2
-	}
+	d.paramType = PTypeO
 	return d
 }
 
@@ -1438,6 +1439,11 @@ func (d *Data) AsOptional() *Data {
 func (d *Data) Read(b []byte) (int, error) {
 	if d.paramType == PTypeO {
 		return d.readOptional(b)
+	}
+
+	// force to read as V if it's not O
+	if d.paramType == PTypeF {
+		d.paramType = PTypeV
 	}
 	return d.read(b)
 }
@@ -1447,8 +1453,17 @@ func (d *Data) read(b []byte) (int, error) {
 	n := len(b)
 
 	d.code = PCodeData
-	d.length = n
-	d.value = b[:n]
+	d.length = int(b[0])
+	if d.length == 0 {
+		d.value = nil
+		return 1, nil
+	}
+
+	if n < d.length+1 {
+		return 1, io.ErrUnexpectedEOF
+	}
+
+	d.value = b[1 : d.length+1]
 
 	return n, nil
 }
@@ -1461,12 +1476,11 @@ func (d *Data) readOptional(b []byte) (int, error) {
 		logf("invalid parameter code: expected %d, got %d", PCodeData, d.code)
 	}
 
-	d.length = int(b[1])
-	if d.length != n {
-		logf("%s: invalid length: expected %d, got %d", PCodeData, n, d.length)
+	m, err := d.read(b[1:])
+	n += m
+	if err != nil {
+		return n, err
 	}
-
-	d.value = b[2:]
 
 	return n, nil
 }
@@ -1481,11 +1495,16 @@ func (d *Data) Write(b []byte) (int, error) {
 
 // write serializes the Data parameter and returns it as a byte slice.
 func (d *Data) write(b []byte) (int, error) {
-	if len(b) < d.length {
+	if len(b) < d.length+1 {
 		return 0, io.ErrUnexpectedEOF
 	}
 
-	copy(b, d.value)
+	b[0] = uint8(d.length)
+	if d.length == 0 {
+		return 1, nil
+	}
+
+	copy(b[1:d.length+1], d.value)
 	return d.length, nil
 }
 
@@ -1500,6 +1519,14 @@ func (d *Data) writeOptional(b []byte) (int, error) {
 	return d.length, nil
 }
 
+// MarshalLen returns the serial length of Data.
+func (d *Data) MarshalLen() int {
+	if d.paramType == PTypeO {
+		return 2 + len(d.value)
+	}
+	return 1 + len(d.value)
+}
+
 // Value returns the Data in []byte.
 func (d *Data) Value() []byte {
 	return d.value
@@ -1512,7 +1539,7 @@ func (d *Data) Code() ParameterNameCode {
 
 // String returns the Data in string.
 func (d *Data) String() string {
-	return fmt.Sprintf("%s: %x", d.code, d.value)
+	return fmt.Sprintf("{%s (%s): %x}", d.code, d.paramType, d.value)
 }
 
 // Segmentation represents the Segmentation.
@@ -1531,7 +1558,7 @@ func NewSegmentation(first bool, cls, rem uint8, lrn uint32) *Segmentation {
 	return &Segmentation{
 		paramType:         PTypeO,
 		code:              PCodeSegmentation,
-		length:            6,
+		length:            4,
 		FirstSegment:      first,
 		Class:             cls & 0b1,
 		RemainingSegments: rem & 0b1111,
@@ -1542,14 +1569,13 @@ func NewSegmentation(first bool, cls, rem uint8, lrn uint32) *Segmentation {
 // AsOptional makes the Segmentation an optional parameter.
 func (s *Segmentation) AsOptional() *Segmentation {
 	s.paramType = PTypeO
-	s.length = 6
 	return s
 }
 
 // Read sets the values retrieved from byte sequence in a Segmentation.
 func (s *Segmentation) Read(b []byte) (int, error) {
 	if s.paramType != PTypeO {
-		logf("Segmentation parameter must be optional: %v", s)
+		s.paramType = PTypeO
 	}
 
 	n := 6
@@ -1563,14 +1589,14 @@ func (s *Segmentation) Read(b []byte) (int, error) {
 	}
 
 	s.length = int(b[1])
-	if s.length != n {
-		logf("%s: invalid length: expected %d, got %d", PCodeSegmentation, n, s.length)
+	if s.length != n-2 {
+		logf("%s: invalid length: expected %d, got %d", PCodeSegmentation, n-2, s.length)
 	}
 
-	s.FirstSegment = b[2]&0b10000000 == 0b10000000
-	s.Class = b[2] & 0b01000000
+	s.FirstSegment = b[2]>>7&0b1 == 1
+	s.Class = b[2] >> 6 & 0b1
 	s.RemainingSegments = b[2] & 0b1111
-	s.LocalReference = utils.Uint24To32(b[3:])
+	s.LocalReference = utils.Uint24To32(b[3:6])
 
 	return n, nil
 }
@@ -1581,7 +1607,8 @@ func (s *Segmentation) Write(b []byte) (int, error) {
 		logf("Segmentation parameter must be optional: %v", s)
 	}
 
-	if len(b) < s.length {
+	n := s.length + 2
+	if len(b) < n {
 		return 0, io.ErrUnexpectedEOF
 	}
 
@@ -1597,13 +1624,12 @@ func (s *Segmentation) Write(b []byte) (int, error) {
 
 	copy(b[3:], utils.Uint32To24(s.LocalReference))
 
-	return s.length, nil
+	return n, nil
 }
 
-// Value returns the Segmentation in *Segmentation.
-// This is here to implement the Parameter interface, but it won't be used.
-func (s *Segmentation) Value() *Segmentation {
-	return s
+// MarshalLen returns the serial length of Segmentation.
+func (s *Segmentation) MarshalLen() int {
+	return s.length + 2
 }
 
 // Code returns the Segmentation in ParameterNameCode.
@@ -1614,8 +1640,8 @@ func (s *Segmentation) Code() ParameterNameCode {
 // String returns the Segmentation in string.
 func (s *Segmentation) String() string {
 	return fmt.Sprintf(
-		"%s: {FirstSegment=%t, Class=%d, RemainingSegments=%d, LocalReference=%d}",
-		s.code, s.FirstSegment, s.Class, s.RemainingSegments, s.LocalReference,
+		"{%s (%s): {FirstSegment=%t, Class=%d, RemainingSegments=%d, LocalReference=%d}}",
+		s.code, s.paramType, s.FirstSegment, s.Class, s.RemainingSegments, s.LocalReference,
 	)
 }
 
@@ -1640,7 +1666,6 @@ func NewHopCounter(v uint8) *HopCounter {
 // AsOptional makes the HopCounter an optional parameter.
 func (h *HopCounter) AsOptional() *HopCounter {
 	h.paramType = PTypeO
-	h.length = 3
 	return h
 }
 
@@ -1677,8 +1702,8 @@ func (h *HopCounter) readOptional(b []byte) (int, error) {
 		logf("invalid parameter code: expected %d, got %d", PCodeHopCounter, h.code)
 	}
 	h.length = int(b[1])
-	if h.length != n {
-		logf("%s: invalid length: expected %d, got %d", PCodeHopCounter, n, h.length)
+	if h.length != n-2 {
+		logf("%s: invalid length: expected %d, got %d", PCodeHopCounter, n-2, h.length)
 	}
 	h.value = b[2]
 
@@ -1727,7 +1752,7 @@ func (h *HopCounter) Code() ParameterNameCode {
 
 // String returns the HopCounter in string.
 func (h *HopCounter) String() string {
-	return fmt.Sprintf("%s: %d", h.code, h.value)
+	return fmt.Sprintf("{%s (%s): %d}", h.code, h.paramType, h.value)
 }
 
 // Importance represents the Importance.
@@ -1743,7 +1768,7 @@ func NewImportance(v uint8) *Importance {
 	return &Importance{
 		paramType: PTypeO,
 		code:      PCodeImportance,
-		length:    3,
+		length:    1,
 		value:     v & 0b111,
 	}
 }
@@ -1751,14 +1776,13 @@ func NewImportance(v uint8) *Importance {
 // AsOptional makes the Importance an optional parameter.
 func (i *Importance) AsOptional() *Importance {
 	i.paramType = PTypeO
-	i.length = 3
 	return i
 }
 
 // Read sets the values retrieved from byte sequence in a Importance.
 func (i *Importance) Read(b []byte) (int, error) {
 	if i.paramType != PTypeO {
-		logf("Importance parameter must be optional: %v", i)
+		i.paramType = PTypeO
 	}
 
 	n := 3
@@ -1772,8 +1796,8 @@ func (i *Importance) Read(b []byte) (int, error) {
 	}
 
 	i.length = int(b[1])
-	if i.length != n {
-		logf("%s: invalid length: expected %d, got %d", PCodeImportance, n, i.length)
+	if i.length != n-2 {
+		logf("%s: invalid length: expected %d, got %d", PCodeImportance, n-2, i.length)
 	}
 
 	i.value = b[2] & 0b111
@@ -1787,7 +1811,8 @@ func (i *Importance) Write(b []byte) (int, error) {
 		logf("Importance parameter must be optional: %v", i)
 	}
 
-	if len(b) < i.length {
+	n := i.length + 2
+	if len(b) < n {
 		return 0, io.ErrUnexpectedEOF
 	}
 
@@ -1795,7 +1820,12 @@ func (i *Importance) Write(b []byte) (int, error) {
 	b[1] = uint8(i.length)
 	b[2] = i.value
 
-	return i.length, nil
+	return n, nil
+}
+
+// MarshalLen returns the serial length of Importance.
+func (i *Importance) MarshalLen() int {
+	return i.length + 2
 }
 
 // Value returns the Importance in uint8.
@@ -1810,7 +1840,7 @@ func (i *Importance) Code() ParameterNameCode {
 
 // String returns the Importance in string.
 func (i *Importance) String() string {
-	return fmt.Sprintf("%s: %d", i.code, i.value)
+	return fmt.Sprintf("{%s (%s): %d}", i.code, i.paramType, i.value)
 }
 
 // LongData represents the Long Data.
@@ -1823,6 +1853,7 @@ type LongData struct {
 
 // NewLongData creates a new LongData.
 func NewLongData(v []byte) *LongData {
+	log.Println(len(v))
 	return &LongData{
 		paramType: PTypeV,
 		code:      PCodeLongData,
@@ -1833,20 +1864,28 @@ func NewLongData(v []byte) *LongData {
 
 // Read sets the values retrieved from byte sequence in a LongData.
 func (l *LongData) Read(b []byte) (int, error) {
+	if l.paramType != PTypeV {
+		l.paramType = PTypeV
+	}
+
 	n := len(b)
 	l.code = PCodeLongData
-	l.length = n
-	l.value = b[:n]
+	l.length = int(binary.BigEndian.Uint16(b[:2]))
+	if n < l.length+2 {
+		return n, io.ErrUnexpectedEOF
+	}
+	l.value = b[2 : l.length+2]
 	return n, nil
 }
 
 // Write serializes the LongData parameter and returns it as a byte slice.
 func (l *LongData) Write(b []byte) (int, error) {
-	if len(b) < l.length {
+	if len(b) < l.length+2 {
 		return 0, io.ErrUnexpectedEOF
 	}
 
-	copy(b, l.value)
+	binary.BigEndian.PutUint16(b, uint16(l.length))
+	copy(b[2:], l.value)
 	return l.length, nil
 }
 
@@ -1862,5 +1901,5 @@ func (l *LongData) Code() ParameterNameCode {
 
 // String returns the LongData in string.
 func (l *LongData) String() string {
-	return fmt.Sprintf("%s: %x", l.code, l.value)
+	return fmt.Sprintf("{%s (%s): %x}", l.code, l.paramType, l.value)
 }

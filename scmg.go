@@ -121,7 +121,7 @@ func (s *SCMG) MarshalLen() int {
 
 // String returns the SCMG values in human readable format.
 func (s *SCMG) String() string {
-	return fmt.Sprintf("{Type: %d, AffectedSSN: %v, AffectedPC: %v, SubsystemMultiplicityIndicator: %d, SCCPCongestionLevel: %d}",
+	return fmt.Sprintf("%s: {AffectedSSN: %v, AffectedPC: %v, SubsystemMultiplicityIndicator: %d, SCCPCongestionLevel: %d}",
 		s.Type,
 		s.AffectedSSN,
 		s.AffectedPC,
