@@ -37,7 +37,7 @@ Run `go mod tidy` to download the dependency, and you're ready to start developi
 | Reset confirm                  | RSC          | 4.15      | -          |
 | Protocol data unit error       | ERR          | 4.16      | -          |
 | Inactivity test                | IT           | 4.17      | -          |
-| Extended unitdata              | XUDT         | 4.18      | -          |
+| Extended unitdata              | XUDT         | 4.18      | Yes        |
 | Extended unitdata service      | XUDTS        | 4.19      | -          |
 | Long unitdata                  | LUDT         | 4.20      | -          |
 | Long unitdata service          | LUDTS        | 4.21      | -          |
@@ -46,30 +46,30 @@ Run `go mod tidy` to download the dependency, and you're ready to start developi
 
 | Parameter name              | Reference | Supported? |
 | --------------------------- | --------- | ---------- |
-| End of optional parameters  | 3.1       |            |
-| Destination local reference | 3.2       |            |
-| Source local reference      | 3.3       |            |
+| End of optional parameters  | 3.1       | Yes        |
+| Destination local reference | 3.2       | Yes        |
+| Source local reference      | 3.3       | Yes        |
 | Called party address        | 3.4       | Yes        |
 | Calling party address       | 3.5       | Yes        |
 | Protocol class              | 3.6       | Yes        |
-| Segmenting/reassembling     | 3.7       |            |
-| Receive sequence number     | 3.8       |            |
-| Sequencing/segmenting       | 3.9       |            |
-| Credit                      | 3.10      |            |
-| Release cause               | 3.11      |            |
-| Return cause                | 3.12      |            |
-| Reset cause                 | 3.13      |            |
-| Error cause                 | 3.14      |            |
-| Refusal cause               | 3.15      |            |
+| Segmenting/reassembling     | 3.7       | Yes        |
+| Receive sequence number     | 3.8       | Yes        |
+| Sequencing/segmenting       | 3.9       | Yes        |
+| Credit                      | 3.10      | Yes        |
+| Release cause               | 3.11      | Yes        |
+| Return cause                | 3.12      | Yes        |
+| Reset cause                 | 3.13      | Yes        |
+| Error cause                 | 3.14      | Yes        |
+| Refusal cause               | 3.15      | Yes        |
 | Data                        | 3.16      | Yes        |
-| Segmentation                | 3.17      |            |
-| Hop counter                 | 3.18      |            |
-| Importance                  | 3.19      |            |
-| Long data                   | 3.20      |            |
+| Segmentation                | 3.17      | Yes        |
+| Hop counter                 | 3.18      | Yes        |
+| Importance                  | 3.19      | Yes        |
+| Long data                   | 3.20      | Yes        |
 
 ## Author(s)
 
-Yoshiyuki Kurauchi ([Website](https://wmnsk.com/)) 
+Yoshiyuki Kurauchi ([Website](https://wmnsk.com/)) and [contributors](https://github.com/wmnsk/go-sccp/graphs/contributors).
 
 ## LICENSE
 

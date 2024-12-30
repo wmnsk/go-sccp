@@ -9,14 +9,24 @@ import (
 	"encoding/hex"
 )
 
-// EncodeBCD encodes a string into BCD-encoded bytes.
-func EncodeBCD(s string) ([]byte, error) {
+// BCDEncode encodes a string into BCD-encoded bytes.
+func BCDEncode(s string) ([]byte, error) {
 	return StrToSwappedBytes(s, "0")
 }
 
-// DecodeBCD decodes BCD-encoded bytes into a string.
-func DecodeBCD(isOdd bool, b []byte) (string, error) {
-	return SwappedBytesToStr(b, isOdd), nil
+// MustBCDEncode is the same as BCDEncode but panics if any error occurs.
+// Use this function only when you are sure that the input string is valid.
+func MustBCDEncode(s string) []byte {
+	b, err := BCDEncode(s)
+	if err != nil {
+		panic(err)
+	}
+	return b
+}
+
+// BCDDecode decodes BCD-encoded bytes into a string.
+func BCDDecode(isOdd bool, b []byte) string {
+	return SwappedBytesToStr(b, isOdd)
 }
 
 // StrToSwappedBytes returns swapped bits from a byte.
