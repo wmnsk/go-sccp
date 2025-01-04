@@ -118,6 +118,7 @@ func NewGlobalTitle(
 	return gt
 }
 
+// Write serializes GlobalTitle to the given byte sequence.
 func (g *GlobalTitle) Write(b []byte) (int, error) {
 	l := g.MarshalLen()
 	if len(b) < l {

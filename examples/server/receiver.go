@@ -9,9 +9,11 @@ package main
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"io"
 	"log"
+	"net"
 	"time"
 
 	"github.com/wmnsk/go-m3ua/messages/params"
@@ -28,21 +30,25 @@ func serve(conn *m3ua.Conn) {
 	for {
 		n, err := conn.Read(buf)
 		if err != nil {
-			if err == io.EOF {
-				log.Printf("Closed M3UA conn with: %s, waiting to come back...", conn.RemoteAddr())
+			if errors.Is(err, io.EOF) || errors.Is(err, net.ErrClosed) {
+				log.Printf("Closed M3UA conn with: %s, waiting to come back on", conn.RemoteAddr())
 				return
 			}
 			log.Printf("Error reading from M3UA conn: %s", err)
 			return
 		}
 
-		msg, err := sccp.ParseMessage(buf[:n])
-		if err != nil {
-			log.Printf("Failed to parse SCCP message: %s, %x", err, buf[:n])
-			continue
-		}
+		b := make([]byte, n)
+		copy(b, buf[:n])
+		go func() {
+			msg, err := sccp.ParseMessage(b)
+			if err != nil {
+				log.Printf("Failed to parse SCCP message: %s, %x", err, b)
+				return
+			}
 
-		log.Printf("Received SCCP message: %s", msg)
+			log.Printf("Received SCCP message: %v", msg)
+		}()
 	}
 }
 
@@ -52,7 +58,8 @@ func main() {
 	)
 	flag.Parse()
 
-	// create *Config to be used in M3UA connection
+	// see go-m3ua for the details of the configuration.
+	// https://github.com/wmnsk/go-m3ua
 	config := m3ua.NewServerConfig(
 		&m3ua.HeartbeatInfo{
 			Enabled:  true,
@@ -74,7 +81,6 @@ func main() {
 	config.AspIdentifier = nil
 	config.CorrelationID = nil
 
-	// setup SCTP listener on the specified IPs and Port.
 	laddr, err := sctp.ResolveSCTPAddr("sctp", *addr)
 	if err != nil {
 		log.Fatalf("Failed to resolve SCTP address: %s", err)

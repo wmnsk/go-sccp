@@ -222,8 +222,8 @@ var cases = []struct {
 			return p, nil
 		},
 	}, {
-		description: "ReleaseCause",
-		structured:  params.NewReleaseCause(params.ReleaseCauseSCCPUserOriginated),
+		description: "ReleaseCause/Generics",
+		structured:  params.NewCause(params.ReleaseCauseSCCPUserOriginated),
 		serialized:  []byte{0x03},
 		decodeFunc: func(b []byte) (serializable, error) {
 			p := &params.ReleaseCause{}
@@ -234,7 +234,7 @@ var cases = []struct {
 		},
 	}, {
 		description: "ReturnCause",
-		structured:  params.NewReturnCause(params.ReturnCauseSubsystemFailure),
+		structured:  params.NewCause(params.ReturnCauseSubsystemFailure),
 		serialized:  []byte{0x03},
 		decodeFunc: func(b []byte) (serializable, error) {
 			p := &params.ReturnCause{}
@@ -245,7 +245,7 @@ var cases = []struct {
 		},
 	}, {
 		description: "ResetCause",
-		structured:  params.NewResetCause(params.ResetCauseMessageOutOfOrderIncorrectReceiveSequenceNumber),
+		structured:  params.NewCause(params.ResetCauseMessageOutOfOrderIncorrectReceiveSequenceNumber),
 		serialized:  []byte{0x03},
 		decodeFunc: func(b []byte) (serializable, error) {
 			p := &params.ResetCause{}
@@ -256,7 +256,7 @@ var cases = []struct {
 		},
 	}, {
 		description: "ErrorCause",
-		structured:  params.NewErrorCause(params.ErrorCauseServiceClassMismatch),
+		structured:  params.NewCause(params.ErrorCauseServiceClassMismatch),
 		serialized:  []byte{0x03},
 		decodeFunc: func(b []byte) (serializable, error) {
 			p := &params.ErrorCause{}
@@ -267,7 +267,7 @@ var cases = []struct {
 		},
 	}, {
 		description: "RefusalCause",
-		structured:  params.NewRefusalCause(params.RefusalCauseSCCPUserOriginated),
+		structured:  params.NewCause(params.RefusalCauseSCCPUserOriginated),
 		serialized:  []byte{0x03},
 		decodeFunc: func(b []byte) (serializable, error) {
 			p := &params.RefusalCause{}

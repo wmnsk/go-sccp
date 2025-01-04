@@ -30,6 +30,7 @@ type Parameter interface {
 // ParameterType is a type for Parameter described in the tables in section 4 of Q.713.
 type ParameterType uint8
 
+// ParameterType values.
 const (
 	// F: mandatory fixed length parameter
 	PTypeF ParameterType = 0 // F
@@ -1021,12 +1022,93 @@ func (c *Credit) String() string {
 	return fmt.Sprintf("{%s (%s): %d}", c.code, c.paramType, c.value)
 }
 
-// ReleaseCause represents the Release Cause.
-type ReleaseCause struct {
+// Cause represents a common structure for all Cause types.
+type Cause[T ~uint8] struct {
 	paramType ParameterType
 	code      ParameterNameCode
 	length    int
-	value     ReleaseCauseValue
+	value     T
+}
+
+// NewCause creates a new Cause.
+func NewCause[T ~uint8](value T) *Cause[T] {
+	c := &Cause[T]{
+		paramType: PTypeF,
+		length:    1,
+		value:     value,
+	}
+
+	switch any(c).(type) {
+	case *ReleaseCause:
+		c.code = PCodeReleaseCause
+	case *ReturnCause:
+		c.code = PCodeReturnCause
+	case *ResetCause:
+		c.code = PCodeResetCause
+	case *ErrorCause:
+		c.code = PCodeErrorCause
+	case *RefusalCause:
+		c.code = PCodeRefusalCause
+	default:
+		logf("invalid Cause type: %T", c)
+	}
+
+	return c
+}
+
+// Read sets the values retrieved from byte sequence in a Cause.
+func (c *Cause[T]) Read(b []byte) (int, error) {
+	n := 1
+	if len(b) < n {
+		return 0, io.ErrUnexpectedEOF
+	}
+
+	c.paramType = PTypeF
+
+	switch any(c).(type) {
+	case *ReleaseCause:
+		c.code = PCodeReleaseCause
+	case *ReturnCause:
+		c.code = PCodeReturnCause
+	case *ResetCause:
+		c.code = PCodeResetCause
+	case *ErrorCause:
+		c.code = PCodeErrorCause
+	case *RefusalCause:
+		c.code = PCodeRefusalCause
+	default:
+		return 0, UnsupportedParameterError(b[0])
+	}
+
+	c.length = n
+	c.value = T(b[0])
+
+	return n, nil
+}
+
+// Write serializes the Cause parameter and returns it as a byte slice.
+func (c *Cause[T]) Write(b []byte) (int, error) {
+	if len(b) < c.length {
+		return 0, io.ErrUnexpectedEOF
+	}
+
+	b[0] = uint8(c.value)
+	return c.length, nil
+}
+
+// Value returns the value in the Cause.
+func (c *Cause[T]) Value() T {
+	return c.value
+}
+
+// Code returns the code in the Cause.
+func (c *Cause[T]) Code() ParameterNameCode {
+	return c.code
+}
+
+// String returns the Cause as a string.
+func (c *Cause[T]) String() string {
+	return fmt.Sprintf("{%s (%s): %v}", c.code, c.paramType, c.value)
 }
 
 // ReleaseCauseValue is a type for ReleaseCause.
@@ -1053,64 +1135,10 @@ const (
 	ReleaseCauseSCCPFailure                        ReleaseCauseValue = 0b00010000 // SCCP failure
 )
 
-// NewReleaseCause creates a new ReleaseCause.
-func NewReleaseCause(v ReleaseCauseValue) *ReleaseCause {
-	return &ReleaseCause{
-		paramType: PTypeF,
-		code:      PCodeReleaseCause,
-		length:    1,
-		value:     v,
-	}
-}
+// ReleaseCause is a specific Cause for ReleaseCause.
+type ReleaseCause = Cause[ReleaseCauseValue]
 
-// Read sets the values retrieved from byte sequence in a ReleaseCause.
-func (r *ReleaseCause) Read(b []byte) (int, error) {
-	n := 1
-	if len(b) < n {
-		return 0, io.ErrUnexpectedEOF
-	}
-
-	r.code = PCodeReleaseCause
-	r.length = n
-	r.value = ReleaseCauseValue(b[0])
-
-	return n, nil
-}
-
-// Write serializes the ReleaseCause parameter and returns it as a byte slice.
-func (r *ReleaseCause) Write(b []byte) (int, error) {
-	if len(b) < r.length {
-		return 0, io.ErrUnexpectedEOF
-	}
-
-	b[0] = uint8(r.value)
-	return r.length, nil
-}
-
-// Value returns the ReleaseCause in ReleaseCauseValue.
-func (r *ReleaseCause) Value() ReleaseCauseValue {
-	return r.value
-}
-
-// Code returns the ReleaseCause in ParameterNameCode.
-func (r *ReleaseCause) Code() ParameterNameCode {
-	return r.code
-}
-
-// String returns the ReleaseCause in string.
-func (r *ReleaseCause) String() string {
-	return fmt.Sprintf("{%s (%s): %s}", r.code, r.paramType, r.value)
-}
-
-// ReturnCause represents the Return Cause.
-type ReturnCause struct {
-	paramType ParameterType
-	code      ParameterNameCode
-	length    int
-	value     ReturnCauseValue
-}
-
-// ReturnCauseValue is a type for ReturnCause.
+// ReturnCause is a specific Cause for ReturnCause.
 type ReturnCauseValue uint8
 
 // ReturnCauseValue values.
@@ -1132,62 +1160,8 @@ const (
 	ReturnCauseSegmentationFailure                   ReturnCauseValue = 0b00001110 // segmentation failure
 )
 
-// NewReturnCause creates a new ReturnCause.
-func NewReturnCause(v ReturnCauseValue) *ReturnCause {
-	return &ReturnCause{
-		paramType: PTypeF,
-		code:      PCodeReturnCause,
-		length:    1,
-		value:     v,
-	}
-}
-
-// Read sets the values retrieved from byte sequence in a ReturnCause.
-func (r *ReturnCause) Read(b []byte) (int, error) {
-	n := 1
-	if len(b) < n {
-		return 0, io.ErrUnexpectedEOF
-	}
-
-	r.code = PCodeReturnCause
-	r.length = n
-	r.value = ReturnCauseValue(b[0])
-
-	return n, nil
-}
-
-// Write serializes the ReturnCause parameter and returns it as a byte slice.
-func (r *ReturnCause) Write(b []byte) (int, error) {
-	if len(b) < r.length {
-		return 0, io.ErrUnexpectedEOF
-	}
-
-	b[0] = uint8(r.value)
-	return r.length, nil
-}
-
-// Value returns the ReturnCause in ReturnCauseValue.
-func (r *ReturnCause) Value() ReturnCauseValue {
-	return r.value
-}
-
-// Code returns the ReturnCause in ParameterNameCode.
-func (r *ReturnCause) Code() ParameterNameCode {
-	return r.code
-}
-
-// String returns the ReturnCause in string.
-func (r *ReturnCause) String() string {
-	return fmt.Sprintf("{%s (%s): %s}", r.code, r.paramType, r.value)
-}
-
-// ResetCause represents the Reset Cause.
-type ResetCause struct {
-	paramType ParameterType
-	code      ParameterNameCode
-	length    int
-	value     ResetCauseValue
-}
+// ReturnCause is a specific instance of Cause.
+type ReturnCause = Cause[ReturnCauseValue]
 
 // ResetCauseValue is a type for ResetCause.
 type ResetCauseValue uint8
@@ -1209,62 +1183,8 @@ const (
 	ResetCauseUnqualified                                                          ResetCauseValue = 0b00001100 // unqualified
 )
 
-// NewResetCause creates a new ResetCause.
-func NewResetCause(v ResetCauseValue) *ResetCause {
-	return &ResetCause{
-		paramType: PTypeF,
-		code:      PCodeResetCause,
-		length:    1,
-		value:     v,
-	}
-}
-
-// Read sets the values retrieved from byte sequence in a ResetCause.
-func (r *ResetCause) Read(b []byte) (int, error) {
-	n := 1
-	if len(b) < n {
-		return 0, io.ErrUnexpectedEOF
-	}
-
-	r.code = PCodeResetCause
-	r.length = n
-	r.value = ResetCauseValue(b[0])
-
-	return n, nil
-}
-
-// Write serializes the ResetCause parameter and returns it as a byte slice.
-func (r *ResetCause) Write(b []byte) (int, error) {
-	if len(b) < r.length {
-		return 0, io.ErrUnexpectedEOF
-	}
-
-	b[0] = uint8(r.value)
-	return r.length, nil
-}
-
-// Value returns the ResetCause in ResetCauseValue.
-func (r *ResetCause) Value() ResetCauseValue {
-	return r.value
-}
-
-// Code returns the ResetCause in ParameterNameCode.
-func (r *ResetCause) Code() ParameterNameCode {
-	return r.code
-}
-
-// String returns the ResetCause in string.
-func (r *ResetCause) String() string {
-	return fmt.Sprintf("{%s (%s): %s}", r.code, r.paramType, r.value)
-}
-
-// ErrorCause represents the Error Cause.
-type ErrorCause struct {
-	paramType ParameterType
-	code      ParameterNameCode
-	length    int
-	value     ErrorCauseValue
-}
+// ResetCause is a specific Cause for ResetCause.
+type ResetCause = Cause[ResetCauseValue]
 
 // ErrorCauseValue is a type for ErrorCause.
 type ErrorCauseValue uint8
@@ -1278,62 +1198,8 @@ const (
 	ErrorCauseUnqualified                                          ErrorCauseValue = 0b00000100 // unqualified
 )
 
-// NewErrorCause creates a new ErrorCause.
-func NewErrorCause(v ErrorCauseValue) *ErrorCause {
-	return &ErrorCause{
-		paramType: PTypeF,
-		code:      PCodeErrorCause,
-		length:    1,
-		value:     v,
-	}
-}
-
-// Read sets the values retrieved from byte sequence in a ErrorCause.
-func (e *ErrorCause) Read(b []byte) (int, error) {
-	n := 1
-	if len(b) < n {
-		return 0, io.ErrUnexpectedEOF
-	}
-
-	e.code = PCodeErrorCause
-	e.length = n
-	e.value = ErrorCauseValue(b[0])
-
-	return n, nil
-}
-
-// Write serializes the ErrorCause parameter and returns it as a byte slice.
-func (e *ErrorCause) Write(b []byte) (int, error) {
-	if len(b) < e.length {
-		return 0, io.ErrUnexpectedEOF
-	}
-
-	b[0] = uint8(e.value)
-	return e.length, nil
-}
-
-// Value returns the ErrorCause in ErrorCauseValue.
-func (e *ErrorCause) Value() ErrorCauseValue {
-	return e.value
-}
-
-// Code returns the ErrorCause in ParameterNameCode.
-func (e *ErrorCause) Code() ParameterNameCode {
-	return e.code
-}
-
-// String returns the ErrorCause in string.
-func (e *ErrorCause) String() string {
-	return fmt.Sprintf("{%s (%s): %s}", e.code, e.paramType, e.value)
-}
-
-// RefusalCause represents the Refusal Cause.
-type RefusalCause struct {
-	paramType ParameterType
-	code      ParameterNameCode
-	length    int
-	value     RefusalCauseValue
-}
+// ErrorCause is a specific Cause for ErrorCause.
+type ErrorCause = Cause[ErrorCauseValue]
 
 // RefusalCauseValue is a type for RefusalCause.
 type RefusalCauseValue uint8
@@ -1362,54 +1228,8 @@ const (
 	RefusalCauseUnequippedUser                              RefusalCauseValue = 0b00010011 // unequipped user
 )
 
-// NewRefusalCause creates a new RefusalCause.
-func NewRefusalCause(v RefusalCauseValue) *RefusalCause {
-	return &RefusalCause{
-		paramType: PTypeF,
-		code:      PCodeRefusalCause,
-		length:    1,
-		value:     v,
-	}
-}
-
-// Read sets the values retrieved from byte sequence in a RefusalCause.
-func (r *RefusalCause) Read(b []byte) (int, error) {
-	n := 1
-	if len(b) < n {
-		return 0, io.ErrUnexpectedEOF
-	}
-
-	r.code = PCodeRefusalCause
-	r.length = n
-	r.value = RefusalCauseValue(b[0])
-
-	return n, nil
-}
-
-// Write serializes the RefusalCause parameter and returns it as a byte slice.
-func (r *RefusalCause) Write(b []byte) (int, error) {
-	if len(b) < r.length {
-		return 0, io.ErrUnexpectedEOF
-	}
-
-	b[0] = uint8(r.value)
-	return r.length, nil
-}
-
-// Value returns the RefusalCause in RefusalCauseValue.
-func (r *RefusalCause) Value() RefusalCauseValue {
-	return r.value
-}
-
-// Code returns the RefusalCause in ParameterNameCode.
-func (r *RefusalCause) Code() ParameterNameCode {
-	return r.code
-}
-
-// String returns the RefusalCause in string.
-func (r *RefusalCause) String() string {
-	return fmt.Sprintf("{%s (%s): %s}", r.code, r.paramType, r.value)
-}
+// RefusalCause is a specific Cause for RefusalCause.
+type RefusalCause = Cause[RefusalCauseValue]
 
 // Data represents the Data.
 type Data struct {
