@@ -11,7 +11,7 @@ import (
 	"github.com/wmnsk/go-sccp/params"
 )
 
-// XUDT represents a SCCP Message Unit Data (XUDT).
+// XUDT represents a SCCP Message Extended unitdata (XUDT).
 type XUDT struct {
 	Type                    MsgType
 	ProtocolClass           *params.ProtocolClass
@@ -32,8 +32,8 @@ func NewXUDT(pcls int, retOnErr bool, hc uint8, cdpa, cgpa *params.PartyAddress,
 		Type:                MsgTypeXUDT,
 		ProtocolClass:       params.NewProtocolClass(pcls, retOnErr),
 		HopCounter:          params.NewHopCounter(hc),
-		CalledPartyAddress:  cdpa.AsCalled(),
-		CallingPartyAddress: cgpa.AsCalling(),
+		CalledPartyAddress:  cdpa,
+		CallingPartyAddress: cgpa,
 		Data:                params.NewData(data),
 	}
 
@@ -45,9 +45,9 @@ func NewXUDT(pcls int, retOnErr bool, hc uint8, cdpa, cgpa *params.PartyAddress,
 	for _, opt := range opts {
 		switch opt.Code() {
 		case params.PCodeSegmentation:
-			x.Segmentation = opt.(*params.Segmentation).AsOptional()
+			x.Segmentation = opt.(*params.Segmentation)
 		case params.PCodeImportance:
-			x.Importance = opt.(*params.Importance).AsOptional()
+			x.Importance = opt.(*params.Importance)
 		case params.PCodeEndOfOptionalParameters:
 			x.EndOfOptionalParameters = opt.(*params.EndOfOptionalParameters)
 		default:
@@ -149,7 +149,12 @@ func (x *XUDT) MarshalTo(b []byte) error {
 		}
 		offset += m
 	}
-	b[offset] = 0
+	if param := x.EndOfOptionalParameters; param != nil {
+		_, err := param.Write(b[offset:])
+		if err != nil {
+			return err
+		}
+	}
 
 	return nil
 }
@@ -201,7 +206,7 @@ func (x *XUDT) UnmarshalBinary(b []byte) error {
 		return io.ErrUnexpectedEOF
 	}
 	x.ptr4 = b[offset+3]
-	if m := int(x.ptr4); (m != 0) && l < m+6 { // where optional parameters start
+	if m := int(x.ptr4); (m != 0) && l < m+7 { // where optional parameters start
 		return io.ErrUnexpectedEOF
 	}
 
@@ -209,18 +214,18 @@ func (x *XUDT) UnmarshalBinary(b []byte) error {
 	cdpaEnd := int(x.ptr2 + 4)
 	cgpaEnd := int(x.ptr3 + 5)
 	dataEnd := int(x.ptr4 + 6)
-	x.CalledPartyAddress, err = params.ParseCalledPartyAddress(b[offset:cdpaEnd])
+	x.CalledPartyAddress, _, err = params.ParseCalledPartyAddress(b[offset:cdpaEnd])
 	if err != nil {
 		return err
 	}
 
-	x.CallingPartyAddress, err = params.ParseCallingPartyAddress(b[cdpaEnd:cgpaEnd])
+	x.CallingPartyAddress, _, err = params.ParseCallingPartyAddress(b[cdpaEnd:cgpaEnd])
 	if err != nil {
 		return err
 	}
 
-	x.Data = &params.Data{}
-	if _, err := x.Data.Read(b[cgpaEnd:]); err != nil {
+	x.Data, _, err = params.ParseData(b[cgpaEnd:])
+	if err != nil {
 		return err
 	}
 
@@ -228,7 +233,7 @@ func (x *XUDT) UnmarshalBinary(b []byte) error {
 		return nil
 	}
 
-	opts, err := params.ParseOptionalParameters(b[dataEnd:])
+	opts, _, err := params.ParseOptionalParameters(b[dataEnd:])
 	if err != nil {
 		return err
 	}
@@ -260,8 +265,8 @@ func (x *XUDT) MarshalLen() int {
 		if param := x.Importance; param != nil {
 			l += param.MarshalLen()
 		}
-		if para := x.EndOfOptionalParameters; para != nil {
-			l += para.MarshalLen()
+		if param := x.EndOfOptionalParameters; param != nil {
+			l += param.MarshalLen()
 		}
 
 		return l

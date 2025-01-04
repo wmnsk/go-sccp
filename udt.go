@@ -27,8 +27,8 @@ func NewUDT(pcls int, retOnErr bool, cdpa, cgpa *params.PartyAddress, data []byt
 	u := &UDT{
 		Type:                MsgTypeUDT,
 		ProtocolClass:       params.NewProtocolClass(pcls, retOnErr),
-		CalledPartyAddress:  cdpa.AsCalled(),
-		CallingPartyAddress: cgpa.AsCalling(),
+		CalledPartyAddress:  cdpa,
+		CallingPartyAddress: cgpa,
 		Data:                params.NewData(data),
 	}
 
@@ -140,12 +140,12 @@ func (u *UDT) UnmarshalBinary(b []byte) error {
 	offset += 3
 	cdpaEnd := int(u.ptr2 + 3)
 	cgpaEnd := int(u.ptr3 + 4)
-	u.CalledPartyAddress, err = params.ParseCalledPartyAddress(b[offset:cdpaEnd])
+	u.CalledPartyAddress, _, err = params.ParseCalledPartyAddress(b[offset:cdpaEnd])
 	if err != nil {
 		return err
 	}
 
-	u.CallingPartyAddress, err = params.ParseCallingPartyAddress(b[cdpaEnd:cgpaEnd])
+	u.CallingPartyAddress, _, err = params.ParseCallingPartyAddress(b[cdpaEnd:cgpaEnd])
 	if err != nil {
 		return err
 	}

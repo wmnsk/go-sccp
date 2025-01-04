@@ -74,7 +74,7 @@ func main() {
 
 	gti := params.GTITTNPESNAI
 	ai := params.NewAddressIndicator(false, true, false, gti)
-	cdPA := params.NewPartyAddress(
+	cdPA := params.NewCalledPartyAddress(
 		ai, 0, 6, params.NewGlobalTitle(
 			gti,
 			params.TranslationType(0),
@@ -84,7 +84,7 @@ func main() {
 			utils.MustBCDEncode("1234567890123456"),
 		),
 	)
-	cgPA := params.NewPartyAddress(
+	cgPA := params.NewCallingPartyAddress(
 		ai, 0, 7, params.NewGlobalTitle(
 			gti,
 			params.TranslationType(1),

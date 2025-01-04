@@ -7,7 +7,6 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
-	"log"
 
 	"github.com/wmnsk/go-sccp/utils"
 )
@@ -23,8 +22,9 @@ func (e UnsupportedParameterError) Error() string {
 // Parameter is an interface that all SCCP parameters have to implement.
 type Parameter interface {
 	io.ReadWriter
+	MarshalLen() int
 	Code() ParameterNameCode
-	String() string
+	fmt.Stringer
 }
 
 // ParameterType is a type for Parameter described in the tables in section 4 of Q.713.
@@ -88,13 +88,13 @@ const (
 )
 
 // ParseOptionalParameters parses optional parameters from the given byte sequence.
-func ParseOptionalParameters(b []byte) ([]Parameter, error) {
+func ParseOptionalParameters(b []byte) ([]Parameter, int, error) {
 	var params []Parameter
 	var offset int
 	for len(b) > 0 {
 		p, n, err := ParseOptionalParameter(b[offset:])
 		if err != nil {
-			return nil, err
+			return nil, offset, err
 		}
 		params = append(params, p)
 		if p.Code() == PCodeEndOfOptionalParameters {
@@ -102,7 +102,7 @@ func ParseOptionalParameters(b []byte) ([]Parameter, error) {
 		}
 		offset += n
 	}
-	return params, nil
+	return params, offset, nil
 }
 
 // ParseOptionalParameter parses a single optional parameter from the given byte sequence.
@@ -146,6 +146,22 @@ func ParseOptionalParameter(b []byte) (Parameter, int, error) {
 	return p, n, nil
 }
 
+/*
+Specific Parameter implementations
+
+Each parameter should implement the following functions/methods:
+- Constructor: NewParameterName creates a new ParameterName.
+- Parser: ParseParameterName parses the given byte sequence as a ParameterName.
+- Read: Read sets the values retrieved from byte sequence in a ParameterName.
+- Write: Write serializes the ParameterName parameter and returns it as a byte slice.
+- MarshalLen: MarshalLen returns the serial length of ParameterName.
+- Code: Code returns the ParameterName in ParameterNameCode.
+- Value: Value returns the ParameterName in specific type.
+- String: String returns the ParameterName in string.
+- Others (helpers): Optionally, each parameter can have helper functions to get specific values.
+
+*/
+
 // EndOfOptionalParameters represents the End Of Optional Parameters.
 type EndOfOptionalParameters struct {
 	paramType ParameterType
@@ -162,6 +178,17 @@ func NewEndOfOptionalParameters() *EndOfOptionalParameters {
 		length:    1,
 		value:     0,
 	}
+}
+
+// ParseEndOfOptionalParameters parses the given byte sequence as an EndOfOptionalParameters.
+func ParseEndOfOptionalParameters(b []byte) (*EndOfOptionalParameters, int, error) {
+	e := &EndOfOptionalParameters{}
+	n, err := e.Read(b)
+	if err != nil {
+		return nil, n, err
+	}
+
+	return e, n, nil
 }
 
 // Read sets the values retrieved from byte sequence in a EndOfOptionalParameters.
@@ -198,14 +225,14 @@ func (e *EndOfOptionalParameters) MarshalLen() int {
 	return e.length
 }
 
-// Value returns the EndOfOptionalParameters in uint8.
-func (e *EndOfOptionalParameters) Value() uint8 {
-	return e.value
-}
-
 // Code returns the EndOfOptionalParameters in ParameterNameCode.
 func (e *EndOfOptionalParameters) Code() ParameterNameCode {
 	return e.code
+}
+
+// Value returns the EndOfOptionalParameters in uint8.
+func (e *EndOfOptionalParameters) Value() uint8 {
+	return e.value
 }
 
 // String returns the EndOfOptionalParameters in string.
@@ -245,37 +272,26 @@ func NewSourceLocalReference(v uint32) *LocalReference {
 }
 
 // ParseDestinationLocalReference parses the given byte sequence as a Destination Local Reference.
-func ParseDestinationLocalReference(b []byte) (*LocalReference, error) {
+func ParseDestinationLocalReference(b []byte) (*LocalReference, int, error) {
 	return parseLocalReference(PCodeDestinationLocalReference, b)
 }
 
 // ParseSourceLocalReference parses the given byte sequence as a Source Local Reference.
-func ParseSourceLocalReference(b []byte) (*LocalReference, error) {
+func ParseSourceLocalReference(b []byte) (*LocalReference, int, error) {
 	return parseLocalReference(PCodeSourceLocalReference, b)
 }
 
-func parseLocalReference(c ParameterNameCode, b []byte) (*LocalReference, error) {
+func parseLocalReference(c ParameterNameCode, b []byte) (*LocalReference, int, error) {
 	l := &LocalReference{
 		code: c,
 	}
 
-	if _, err := l.Read(b); err != nil {
-		return nil, err
+	n, err := l.Read(b)
+	if err != nil {
+		return nil, n, err
 	}
 
-	return l, nil
-}
-
-// AsDestination makes the LocalReference a Destination Local Reference.
-func (l *LocalReference) AsDestination() *LocalReference {
-	l.code = PCodeDestinationLocalReference
-	return l
-}
-
-// AsSource makes the LocalReference a Source Local Reference.
-func (l *LocalReference) AsSource() *LocalReference {
-	l.code = PCodeSourceLocalReference
-	return l
+	return l, n, nil
 }
 
 // Read sets the values retrieved from byte sequence in a LocalReference.
@@ -301,19 +317,19 @@ func (l *LocalReference) Write(b []byte) (int, error) {
 	return l.length, nil
 }
 
-// Value returns the LocalReference in []byte.
-func (l *LocalReference) Value() []byte {
-	return l.value
-}
-
-// Uint32 returns the LocalReference in uint32.
-func (l *LocalReference) Uint32() uint32 {
-	return utils.Uint24To32(l.value)
+// MarshalLen returns the serial length of LocalReference.
+func (l *LocalReference) MarshalLen() int {
+	return l.length
 }
 
 // Code returns the LocalReference in ParameterNameCode.
 func (l *LocalReference) Code() ParameterNameCode {
 	return l.code
+}
+
+// Value returns the LocalReference in []byte.
+func (l *LocalReference) Value() []byte {
+	return l.value
 }
 
 // String returns the LocalReference in string.
@@ -322,6 +338,11 @@ func (l *LocalReference) String() string {
 		return fmt.Sprintf("{%s (%s): %d}", l.code, l.paramType, l.Uint32())
 	}
 	return fmt.Sprintf("{%s (%s): %d}", "(Destination or Source) local reference", l.paramType, l.Uint32())
+}
+
+// Uint32 returns the LocalReference in uint32.
+func (l *LocalReference) Uint32() uint32 {
+	return utils.Uint24To32(l.value)
 }
 
 // PartyAddress is a SCCP parameter that represents a Called/Calling Party Address.
@@ -337,7 +358,7 @@ type PartyAddress struct {
 }
 
 // NewAddressIndicator creates a new AddressIndicator, which is meant to be used in
-// NewPartyAddress as the first argument.
+// NewCalled/CallingPartyAddress as the first argument.
 //
 // The last bit, which is "reserved for national use", is always set to 0.
 // You can set the bit to 1 by doing `| 0b10000000` to the result of this function.
@@ -365,9 +386,14 @@ func NewAddressIndicator(hasPC, hasSSN, routeOnSSN bool, gti GlobalTitleIndicato
 // When you are aware of the type of PartyAddress you are creating, you can use
 // NewCalled/CallingPartyAddress to create a PartyAddress with the correct code.
 // Otherwise, you can use AsCalled/Calling to set the code after creating a PartyAddress.
-func NewPartyAddress(ai uint8, spc uint16, ssn uint8, gt *GlobalTitle) *PartyAddress {
+func NewPartyAddress(cdcg ParameterNameCode, ai uint8, spc uint16, ssn uint8, gt *GlobalTitle) *PartyAddress {
+	if cdcg != PCodeCalledPartyAddress && cdcg != PCodeCallingPartyAddress {
+		logf("invalid parameter code: expected %v or %v, got %v", PCodeCalledPartyAddress, PCodeCallingPartyAddress, cdcg)
+	}
+
 	p := &PartyAddress{
 		paramType:   PTypeV,
+		code:        cdcg,
 		Indicator:   ai,
 		GlobalTitle: gt,
 	}
@@ -384,73 +410,69 @@ func NewPartyAddress(ai uint8, spc uint16, ssn uint8, gt *GlobalTitle) *PartyAdd
 	return p
 }
 
-// NewCalledPartyAddress creates a new PartyAddress for Called Party Address.
-func NewCalledPartyAddress(ai uint8, spc uint16, ssn uint8, gt *GlobalTitle) *PartyAddress {
-	p := NewPartyAddress(ai, spc, ssn, gt)
-	p.code = PCodeCalledPartyAddress
-	return p
-}
-
-// NewCallingPartyAddress creates a new PartyAddress for Calling Party Address.
-func NewCallingPartyAddress(ai uint8, spc uint16, ssn uint8, gt *GlobalTitle) *PartyAddress {
-	p := NewPartyAddress(ai, spc, ssn, gt)
-	p.code = PCodeCallingPartyAddress
-	return p
-}
-
-// AsCalled makes the PartyAddress a Called Party Address.
-func (p *PartyAddress) AsCalled() *PartyAddress {
-	p.code = PCodeCalledPartyAddress
-	return p
-}
-
-// AsCalling makes the PartyAddress a Calling Party Address.
-func (p *PartyAddress) AsCalling() *PartyAddress {
-	p.code = PCodeCallingPartyAddress
-	return p
-}
-
-// AsOptional makes the PartyAddress an optional parameter.
-func (p *PartyAddress) AsOptional() *PartyAddress {
+// NewPartyAddressOptional creates a new PartyAddress from properly-typed values.
+func NewPartyAddressOptional(cdcg ParameterNameCode, ai uint8, spc uint16, ssn uint8, gt *GlobalTitle) *PartyAddress {
+	p := NewPartyAddress(cdcg, ai, spc, ssn, gt)
 	p.paramType = PTypeO
 	return p
 }
 
+// NewCalledPartyAddress creates a new PartyAddress for Called Party Address.
+func NewCalledPartyAddress(ai uint8, spc uint16, ssn uint8, gt *GlobalTitle) *PartyAddress {
+	return NewPartyAddress(PCodeCalledPartyAddress, ai, spc, ssn, gt)
+}
+
+// NewCallingPartyAddress creates a new PartyAddress for Calling Party Address.
+func NewCallingPartyAddress(ai uint8, spc uint16, ssn uint8, gt *GlobalTitle) *PartyAddress {
+	return NewPartyAddress(PCodeCallingPartyAddress, ai, spc, ssn, gt)
+}
+
+// NewCalledPartyAddressOptional creates a new PartyAddress for Called Party Address as an optional parameter.
+func NewCalledPartyAddressOptional(ai uint8, spc uint16, ssn uint8, gt *GlobalTitle) *PartyAddress {
+	return NewPartyAddressOptional(PCodeCalledPartyAddress, ai, spc, ssn, gt)
+}
+
+// NewCallingPartyAddressOptional creates a new PartyAddress for Calling Party Address as an optional parameter.
+func NewCallingPartyAddressOptional(ai uint8, spc uint16, ssn uint8, gt *GlobalTitle) *PartyAddress {
+	return NewPartyAddressOptional(PCodeCallingPartyAddress, ai, spc, ssn, gt)
+}
+
 // ParseCalledPartyAddress parses the given byte sequence as a mandatory fixed length
 // Called Party Address and returns it as a PartyAddress.
-func ParseCalledPartyAddress(b []byte) (*PartyAddress, error) {
+func ParseCalledPartyAddress(b []byte) (*PartyAddress, int, error) {
 	return parsePartyAddress(PTypeV, PCodeCalledPartyAddress, b)
 }
 
 // ParseCallingPartyAddress parses the given byte sequence as a mandatory fixed length
 // Calling Party Address and returns it as a PartyAddress.
-func ParseCallingPartyAddress(b []byte) (*PartyAddress, error) {
+func ParseCallingPartyAddress(b []byte) (*PartyAddress, int, error) {
 	return parsePartyAddress(PTypeV, PCodeCallingPartyAddress, b)
 }
 
 // ParseCalledPartyAddressOptional parses the given byte sequence as an optional
 // Called Party Address and returns it as a PartyAddress.
-func ParseCalledPartyAddressOptional(b []byte) (*PartyAddress, error) {
+func ParseCalledPartyAddressOptional(b []byte) (*PartyAddress, int, error) {
 	return parsePartyAddress(PTypeO, PCodeCalledPartyAddress, b)
 }
 
 // ParseCallingPartyAddressOptional parses the given byte sequence as an optional
 // Calling Party Address and returns it as a PartyAddress.
-func ParseCallingPartyAddressOptional(b []byte) (*PartyAddress, error) {
+func ParseCallingPartyAddressOptional(b []byte) (*PartyAddress, int, error) {
 	return parsePartyAddress(PTypeO, PCodeCallingPartyAddress, b)
 }
 
-func parsePartyAddress(ptype ParameterType, code ParameterNameCode, b []byte) (*PartyAddress, error) {
+func parsePartyAddress(ptype ParameterType, code ParameterNameCode, b []byte) (*PartyAddress, int, error) {
 	p := &PartyAddress{
 		paramType: ptype,
 		code:      code,
 	}
 
-	if _, err := p.Read(b); err != nil {
-		return nil, err
+	n, err := p.Read(b)
+	if err != nil {
+		return nil, n, err
 	}
 
-	return p, nil
+	return p, n, nil
 }
 
 // Read sets the values retrieved from byte sequence in a PartyAddress.
@@ -460,9 +482,7 @@ func (p *PartyAddress) Read(b []byte) (int, error) {
 	}
 
 	// force to read as V if it's not O
-	if p.paramType == PTypeF {
-		p.paramType = PTypeV
-	}
+	p.paramType = PTypeV
 	return p.read(b)
 }
 
@@ -595,9 +615,21 @@ func (p *PartyAddress) MarshalLen() int {
 	return l
 }
 
-// SetLength sets the length in length field.
-func (p *PartyAddress) SetLength() {
-	p.length = p.MarshalLen() - 1
+// Code returns the PartyAddress in ParameterNameCode.
+func (p *PartyAddress) Code() ParameterNameCode {
+	return p.code
+}
+
+// Value returns the PartyAddress as it is.
+func (p *PartyAddress) Value() *PartyAddress {
+	return p
+}
+
+// String returns the PartyAddress values in human readable format.
+func (p *PartyAddress) String() string {
+	return fmt.Sprintf("{%s (%s): {length: %d, Indicator: %#08b, SignalingPointCode: %d, SubsystemNumber: %d, GlobalTitle: %v}}",
+		p.code, p.paramType, p.length, p.Indicator, p.SignalingPointCode, p.SubsystemNumber, p.GlobalTitle,
+	)
 }
 
 // RouteOnGT reports whether the packet is routed on Global Title or not.
@@ -629,16 +661,10 @@ func (p *PartyAddress) HasPC() bool {
 	return (int(p.Indicator) & 0b1) == 1
 }
 
-// Code returns the PartyAddress in ParameterNameCode.
-func (p *PartyAddress) Code() ParameterNameCode {
-	return p.code
-}
-
-// String returns the PartyAddress values in human readable format.
-func (p *PartyAddress) String() string {
-	return fmt.Sprintf("{%s (%s): {length: %d, Indicator: %#08b, SignalingPointCode: %d, SubsystemNumber: %d, GlobalTitle: %v}}",
-		p.code, p.paramType, p.length, p.Indicator, p.SignalingPointCode, p.SubsystemNumber, p.GlobalTitle,
-	)
+// SetLength sets the length in length field.
+// This should be called after changing the values in PartyAddress.
+func (p *PartyAddress) SetLength() {
+	p.length = p.MarshalLen() - 1
 }
 
 // ProtocolClass is a Protocol Class SCCP parameter.
@@ -665,6 +691,17 @@ func NewProtocolClass(cls int, returnOnError bool) *ProtocolClass {
 	return p
 }
 
+// ParseProtocolClass parses the given byte sequence as a ProtocolClass.
+func ParseProtocolClass(b []byte) (*ProtocolClass, int, error) {
+	p := &ProtocolClass{}
+	n, err := p.Read(b)
+	if err != nil {
+		return nil, n, err
+	}
+
+	return p, n, nil
+}
+
 // Read sets the values retrieved from byte sequence in a ProtocolClass.
 func (p *ProtocolClass) Read(b []byte) (int, error) {
 	n := 1
@@ -689,9 +726,27 @@ func (p *ProtocolClass) Write(b []byte) (int, error) {
 	return p.length, nil
 }
 
+// MarshalLen returns the serial length of ProtocolClass.
+func (p *ProtocolClass) MarshalLen() int {
+	return p.length
+}
+
+// Code returns the ProtocolClass in ParameterNameCode.
+func (p *ProtocolClass) Code() ParameterNameCode {
+	return p.code
+}
+
 // Value returns the ProtocolClass in uint8.
 func (p *ProtocolClass) Value() uint8 {
 	return uint8(p.value)
+}
+
+// String returns the ProtocolClass in string.
+func (p *ProtocolClass) String() string {
+	return fmt.Sprintf(
+		"{%s (%s): {Class: %d, ReturnOnError: %v}}",
+		p.code, p.paramType, p.Class(), p.ReturnOnError(),
+	)
 }
 
 // Class returns the class part from ProtocolClass parameter.
@@ -702,19 +757,6 @@ func (p *ProtocolClass) Class() int {
 // ReturnOnError judges if ProtocolClass has "Return Message On Error" option.
 func (p *ProtocolClass) ReturnOnError() bool {
 	return (int(p.value) >> 7) == 1
-}
-
-// Code returns the ProtocolClass in ParameterNameCode.
-func (p *ProtocolClass) Code() ParameterNameCode {
-	return p.code
-}
-
-// String returns the ProtocolClass in string.
-func (p *ProtocolClass) String() string {
-	return fmt.Sprintf(
-		"{%s (%s): {Class: %d, ReturnOnError: %v}}",
-		p.code, p.paramType, p.Class(), p.ReturnOnError(),
-	)
 }
 
 // SegmentingReassembling represents the Segmenting/Reassembling.
@@ -740,6 +782,17 @@ func NewSegmentingReassembling(moreData bool) *SegmentingReassembling {
 	}
 }
 
+// ParseSegmentingReassembling parses the given byte sequence as a SegmentingReassembling.
+func ParseSegmentingReassembling(b []byte) (*SegmentingReassembling, int, error) {
+	s := &SegmentingReassembling{}
+	n, err := s.Read(b)
+	if err != nil {
+		return nil, n, err
+	}
+
+	return s, n, nil
+}
+
 // Read sets the values retrieved from byte sequence in a SegmentingReassembling.
 func (s *SegmentingReassembling) Read(b []byte) (int, error) {
 	n := 1
@@ -747,6 +800,7 @@ func (s *SegmentingReassembling) Read(b []byte) (int, error) {
 		return 0, io.ErrUnexpectedEOF
 	}
 
+	s.paramType = PTypeF
 	s.code = PCodeSegmentingReassembling
 	s.length = n
 	s.value = b[0]
@@ -764,14 +818,9 @@ func (s *SegmentingReassembling) Write(b []byte) (int, error) {
 	return s.length, nil
 }
 
-// Value returns the SegmentingReassembling in uint8.
-func (s *SegmentingReassembling) Value() uint8 {
-	return s.value
-}
-
-// MoreData judges if the message has more data.
-func (s *SegmentingReassembling) MoreData() bool {
-	return s.value == 1
+// MarshalLen returns the serial length of SegmentingReassembling.
+func (s *SegmentingReassembling) MarshalLen() int {
+	return s.length
 }
 
 // Code returns the SegmentingReassembling in ParameterNameCode.
@@ -779,9 +828,19 @@ func (s *SegmentingReassembling) Code() ParameterNameCode {
 	return s.code
 }
 
+// Value returns the SegmentingReassembling in uint8.
+func (s *SegmentingReassembling) Value() uint8 {
+	return s.value
+}
+
 // String returns the SegmentingReassembling in string.
 func (s *SegmentingReassembling) String() string {
 	return fmt.Sprintf("{%s (%s): %d}", s.code, s.paramType, s.value)
+}
+
+// MoreData judges if the message has more data.
+func (s *SegmentingReassembling) MoreData() bool {
+	return s.value&0b1 == 1
 }
 
 // ReceiveSequenceNumber represents the Receive Sequence Number.
@@ -803,6 +862,17 @@ func NewReceiveSequenceNumber(v uint8) *ReceiveSequenceNumber {
 	}
 }
 
+// ParseReceiveSequenceNumber parses the given byte sequence as a ReceiveSequenceNumber.
+func ParseReceiveSequenceNumber(b []byte) (*ReceiveSequenceNumber, int, error) {
+	r := &ReceiveSequenceNumber{}
+	n, err := r.Read(b)
+	if err != nil {
+		return nil, n, err
+	}
+
+	return r, n, nil
+}
+
 // Read sets the values retrieved from byte sequence in a ReceiveSequenceNumber.
 func (r *ReceiveSequenceNumber) Read(b []byte) (int, error) {
 	n := 1
@@ -810,6 +880,7 @@ func (r *ReceiveSequenceNumber) Read(b []byte) (int, error) {
 		return 0, io.ErrUnexpectedEOF
 	}
 
+	r.paramType = PTypeF
 	r.code = PCodeReceiveSequenceNumber
 	r.length = n
 	r.value = b[0] & 0b11111110
@@ -827,14 +898,19 @@ func (r *ReceiveSequenceNumber) Write(b []byte) (int, error) {
 	return r.length, nil
 }
 
-// Value returns the ReceiveSequenceNumber in uint8.
-func (r *ReceiveSequenceNumber) Value() uint8 {
-	return r.value
+// MarshalLen returns the serial length of ReceiveSequenceNumber.
+func (r *ReceiveSequenceNumber) MarshalLen() int {
+	return r.length
 }
 
 // Code returns the ReceiveSequenceNumber in ParameterNameCode.
 func (r *ReceiveSequenceNumber) Code() ParameterNameCode {
 	return r.code
+}
+
+// Value returns the ReceiveSequenceNumber in uint8.
+func (r *ReceiveSequenceNumber) Value() uint8 {
+	return r.value
 }
 
 // String returns the ReceiveSequenceNumber in string.
@@ -864,6 +940,17 @@ func NewSequencingSegmenting(snd, rcv uint8, moreData bool) *SequencingSegmentin
 	}
 }
 
+// ParseSequencingSegmenting parses the given byte sequence as a SequencingSegmenting.
+func ParseSequencingSegmenting(b []byte) (*SequencingSegmenting, int, error) {
+	s := &SequencingSegmenting{}
+	n, err := s.Read(b)
+	if err != nil {
+		return nil, n, err
+	}
+
+	return s, n, nil
+}
+
 // Read sets the values retrieved from byte sequence in a SequencingSegmenting.
 func (s *SequencingSegmenting) Read(b []byte) (int, error) {
 	n := 2
@@ -871,6 +958,7 @@ func (s *SequencingSegmenting) Read(b []byte) (int, error) {
 		return 0, io.ErrUnexpectedEOF
 	}
 
+	s.paramType = PTypeF
 	s.code = PCodeSequencingSegmenting
 	s.length = n
 
@@ -897,9 +985,19 @@ func (s *SequencingSegmenting) Write(b []byte) (int, error) {
 	return s.length, nil
 }
 
+// MarshalLen returns the serial length of SequencingSegmenting.
+func (s *SequencingSegmenting) MarshalLen() int {
+	return s.length
+}
+
 // Code returns the SequencingSegmenting in ParameterNameCode.
 func (s *SequencingSegmenting) Code() ParameterNameCode {
 	return s.code
+}
+
+// Value returns the SequencingSegmenting as it is.
+func (s *SequencingSegmenting) Value() *SequencingSegmenting {
+	return s
 }
 
 // String returns the SequencingSegmenting in string.
@@ -928,10 +1026,33 @@ func NewCredit(v uint8) *Credit {
 	}
 }
 
-// AsOptional makes the Credit an optional parameter.
-func (c *Credit) AsOptional() *Credit {
+// NewCreditOptional creates a new optional Credit.
+func NewCreditOptional(v uint8) *Credit {
+	c := NewCredit(v)
 	c.paramType = PTypeO
 	return c
+}
+
+// ParseCredit parses the given byte sequence as a Credit.
+func ParseCredit(b []byte) (*Credit, int, error) {
+	c := &Credit{}
+	n, err := c.Read(b)
+	if err != nil {
+		return nil, n, err
+	}
+
+	return c, n, nil
+}
+
+// ParseCreditOptional parses the given byte sequence as an optional Credit.
+func ParseCreditOptional(b []byte) (*Credit, int, error) {
+	c := &Credit{paramType: PTypeO}
+	n, err := c.Read(b)
+	if err != nil {
+		return nil, n, err
+	}
+
+	return c, n, nil
 }
 
 // Read sets the values retrieved from byte sequence in a Credit.
@@ -949,6 +1070,7 @@ func (c *Credit) read(b []byte) (int, error) {
 		return 0, io.ErrUnexpectedEOF
 	}
 
+	c.paramType = PTypeF
 	c.code = PCodeCredit
 	c.length = n
 	c.value = b[0]
@@ -991,7 +1113,6 @@ func (c *Credit) write(b []byte) (int, error) {
 	}
 
 	b[0] = c.value
-
 	return c.length, nil
 }
 
@@ -1007,14 +1128,22 @@ func (c *Credit) writeOptional(b []byte) (int, error) {
 	return c.length, nil
 }
 
-// Value returns the Credit in uint8.
-func (c *Credit) Value() uint8 {
-	return c.value
+// MarshalLen returns the serial length of Credit.
+func (c *Credit) MarshalLen() int {
+	if c.paramType == PTypeO {
+		return 2 + c.length
+	}
+	return c.length
 }
 
 // Code returns the Credit in ParameterNameCode.
 func (c *Credit) Code() ParameterNameCode {
 	return c.code
+}
+
+// Value returns the Credit in uint8.
+func (c *Credit) Value() uint8 {
+	return c.value
 }
 
 // String returns the Credit in string.
@@ -1030,7 +1159,7 @@ type Cause[T ~uint8] struct {
 	value     T
 }
 
-// NewCause creates a new Cause.
+// NewCause creates a new Cause with the given value and its type.
 func NewCause[T ~uint8](value T) *Cause[T] {
 	c := &Cause[T]{
 		paramType: PTypeF,
@@ -1096,14 +1225,19 @@ func (c *Cause[T]) Write(b []byte) (int, error) {
 	return c.length, nil
 }
 
-// Value returns the value in the Cause.
-func (c *Cause[T]) Value() T {
-	return c.value
+// MarshalLen returns the serial length of Cause.
+func (c *Cause[T]) MarshalLen() int {
+	return c.length
 }
 
 // Code returns the code in the Cause.
 func (c *Cause[T]) Code() ParameterNameCode {
 	return c.code
+}
+
+// Value returns the value in the Cause.
+func (c *Cause[T]) Value() T {
+	return T(c.value)
 }
 
 // String returns the Cause as a string.
@@ -1138,6 +1272,17 @@ const (
 // ReleaseCause is a specific Cause for ReleaseCause.
 type ReleaseCause = Cause[ReleaseCauseValue]
 
+// ParseReleaseCause parses the given byte sequence as a ReleaseCause.
+func ParseReleaseCause(b []byte) (*ReleaseCause, int, error) {
+	c := &ReleaseCause{}
+	n, err := c.Read(b)
+	if err != nil {
+		return nil, n, err
+	}
+
+	return c, n, nil
+}
+
 // ReturnCause is a specific Cause for ReturnCause.
 type ReturnCauseValue uint8
 
@@ -1163,6 +1308,17 @@ const (
 // ReturnCause is a specific instance of Cause.
 type ReturnCause = Cause[ReturnCauseValue]
 
+// ParseReturnCause parses the given byte sequence as a ReturnCause.
+func ParseReturnCause(b []byte) (*ReturnCause, int, error) {
+	c := &ReturnCause{}
+	n, err := c.Read(b)
+	if err != nil {
+		return nil, n, err
+	}
+
+	return c, n, nil
+}
+
 // ResetCauseValue is a type for ResetCause.
 type ResetCauseValue uint8
 
@@ -1186,6 +1342,17 @@ const (
 // ResetCause is a specific Cause for ResetCause.
 type ResetCause = Cause[ResetCauseValue]
 
+// ParseResetCause parses the given byte sequence as a ResetCause.
+func ParseResetCause(b []byte) (*ResetCause, int, error) {
+	c := &ResetCause{}
+	n, err := c.Read(b)
+	if err != nil {
+		return nil, n, err
+	}
+
+	return c, n, nil
+}
+
 // ErrorCauseValue is a type for ErrorCause.
 type ErrorCauseValue uint8
 
@@ -1200,6 +1367,17 @@ const (
 
 // ErrorCause is a specific Cause for ErrorCause.
 type ErrorCause = Cause[ErrorCauseValue]
+
+// ParseErrorCause parses the given byte sequence as a ErrorCause.
+func ParseErrorCause(b []byte) (*ErrorCause, int, error) {
+	c := &ErrorCause{}
+	n, err := c.Read(b)
+	if err != nil {
+		return nil, n, err
+	}
+
+	return c, n, nil
+}
 
 // RefusalCauseValue is a type for RefusalCause.
 type RefusalCauseValue uint8
@@ -1231,6 +1409,17 @@ const (
 // RefusalCause is a specific Cause for RefusalCause.
 type RefusalCause = Cause[RefusalCauseValue]
 
+// ParseRefusalCause parses the given byte sequence as a RefusalCause.
+func ParseRefusalCause(b []byte) (*RefusalCause, int, error) {
+	c := &RefusalCause{}
+	n, err := c.Read(b)
+	if err != nil {
+		return nil, n, err
+	}
+
+	return c, n, nil
+}
+
 // Data represents the Data.
 type Data struct {
 	paramType ParameterType
@@ -1249,10 +1438,33 @@ func NewData(v []byte) *Data {
 	}
 }
 
-// AsOptional makes the Data an optional parameter.
-func (d *Data) AsOptional() *Data {
+// NewDataOptional creates a new Data as an optional parameter.
+func NewDataOptional(v []byte) *Data {
+	d := NewData(v)
 	d.paramType = PTypeO
 	return d
+}
+
+// ParseData parses the given byte sequence as a Data.
+func ParseData(b []byte) (*Data, int, error) {
+	d := &Data{}
+	n, err := d.Read(b)
+	if err != nil {
+		return nil, n, err
+	}
+
+	return d, n, nil
+}
+
+// ParseDataOptional parses the given byte sequence as an optional Data.
+func ParseDataOptional(b []byte) (*Data, int, error) {
+	d := &Data{paramType: PTypeO}
+	n, err := d.Read(b)
+	if err != nil {
+		return nil, n, err
+	}
+
+	return d, n, nil
 }
 
 // Read sets the values retrieved from byte sequence in a Data.
@@ -1271,6 +1483,9 @@ func (d *Data) Read(b []byte) (int, error) {
 // read sets the values retrieved from byte sequence in a Data.
 func (d *Data) read(b []byte) (int, error) {
 	n := len(b)
+	if n < 1 {
+		return 0, io.ErrUnexpectedEOF
+	}
 
 	d.code = PCodeData
 	d.length = int(b[0])
@@ -1347,14 +1562,14 @@ func (d *Data) MarshalLen() int {
 	return 1 + len(d.value)
 }
 
-// Value returns the Data in []byte.
-func (d *Data) Value() []byte {
-	return d.value
-}
-
 // Code returns the Data in ParameterNameCode.
 func (d *Data) Code() ParameterNameCode {
 	return d.code
+}
+
+// Value returns the Data in []byte.
+func (d *Data) Value() []byte {
+	return d.value
 }
 
 // String returns the Data in string.
@@ -1386,10 +1601,25 @@ func NewSegmentation(first bool, cls, rem uint8, lrn uint32) *Segmentation {
 	}
 }
 
-// AsOptional makes the Segmentation an optional parameter.
-func (s *Segmentation) AsOptional() *Segmentation {
-	s.paramType = PTypeO
-	return s
+// NewSegmentationOptional creates a new optional Segmentation.
+func NewSegmentationOptional(first bool, cls, rem uint8, lrn uint32) *Segmentation {
+	return NewSegmentation(first, cls, rem, lrn)
+}
+
+// ParseSegmentation parses the given byte sequence as a Segmentation.
+func ParseSegmentation(b []byte) (*Segmentation, int, error) {
+	s := &Segmentation{}
+	n, err := s.Read(b)
+	if err != nil {
+		return nil, n, err
+	}
+
+	return s, n, nil
+}
+
+// ParseSegmentationOptional parses the given byte sequence as an optional Segmentation.
+func ParseSegmentationOptional(b []byte) (*Segmentation, int, error) {
+	return ParseSegmentation(b)
 }
 
 // Read sets the values retrieved from byte sequence in a Segmentation.
@@ -1457,6 +1687,11 @@ func (s *Segmentation) Code() ParameterNameCode {
 	return s.code
 }
 
+// Value returns the Segmentation as it is.
+func (s *Segmentation) Value() *Segmentation {
+	return s
+}
+
 // String returns the Segmentation in string.
 func (s *Segmentation) String() string {
 	return fmt.Sprintf(
@@ -1483,10 +1718,33 @@ func NewHopCounter(v uint8) *HopCounter {
 	}
 }
 
-// AsOptional makes the HopCounter an optional parameter.
-func (h *HopCounter) AsOptional() *HopCounter {
+// NewHopCounterOptional creates a new optional HopCounter.
+func NewHopCounterOptional(v uint8) *HopCounter {
+	h := NewHopCounter(v)
 	h.paramType = PTypeO
 	return h
+}
+
+// ParseHopCounter parses the given byte sequence as a HopCounter.
+func ParseHopCounter(b []byte) (*HopCounter, int, error) {
+	h := &HopCounter{}
+	n, err := h.Read(b)
+	if err != nil {
+		return nil, n, err
+	}
+
+	return h, n, nil
+}
+
+// ParseHopCounterOptional parses the given byte sequence as an optional HopCounter.
+func ParseHopCounterOptional(b []byte) (*HopCounter, int, error) {
+	h := &HopCounter{paramType: PTypeO}
+	n, err := h.Read(b)
+	if err != nil {
+		return nil, n, err
+	}
+
+	return h, n, nil
 }
 
 // Read sets the values retrieved from byte sequence in a HopCounter.
@@ -1504,6 +1762,7 @@ func (h *HopCounter) read(b []byte) (int, error) {
 		return 0, io.ErrUnexpectedEOF
 	}
 
+	h.paramType = PTypeF
 	h.code = PCodeHopCounter
 	h.length = n
 	h.value = b[0]
@@ -1560,14 +1819,22 @@ func (h *HopCounter) writeOptional(b []byte) (int, error) {
 	return h.length, nil
 }
 
-// Value returns the HopCounter in uint8.
-func (h *HopCounter) Value() uint8 {
-	return h.value
+// MarshalLen returns the serial length of HopCounter.
+func (h *HopCounter) MarshalLen() int {
+	if h.paramType == PTypeO {
+		return 2 + h.length
+	}
+	return h.length
 }
 
 // Code returns the HopCounter in ParameterNameCode.
 func (h *HopCounter) Code() ParameterNameCode {
 	return h.code
+}
+
+// Value returns the HopCounter in uint8.
+func (h *HopCounter) Value() uint8 {
+	return h.value
 }
 
 // String returns the HopCounter in string.
@@ -1593,10 +1860,25 @@ func NewImportance(v uint8) *Importance {
 	}
 }
 
-// AsOptional makes the Importance an optional parameter.
-func (i *Importance) AsOptional() *Importance {
-	i.paramType = PTypeO
-	return i
+// NewImportanceOptional creates a new optional Importance.
+func NewImportanceOptional(v uint8) *Importance {
+	return NewImportance(v)
+}
+
+// ParseImportance parses the given byte sequence as an Importance.
+func ParseImportance(b []byte) (*Importance, int, error) {
+	i := &Importance{}
+	n, err := i.Read(b)
+	if err != nil {
+		return nil, n, err
+	}
+
+	return i, n, nil
+}
+
+// ParseImportanceOptional parses the given byte sequence as an optional Importance.
+func ParseImportanceOptional(b []byte) (*Importance, int, error) {
+	return ParseImportance(b)
 }
 
 // Read sets the values retrieved from byte sequence in a Importance.
@@ -1648,14 +1930,14 @@ func (i *Importance) MarshalLen() int {
 	return i.length + 2
 }
 
-// Value returns the Importance in uint8.
-func (i *Importance) Value() uint8 {
-	return i.value
-}
-
 // Code returns the Importance in ParameterNameCode.
 func (i *Importance) Code() ParameterNameCode {
 	return i.code
+}
+
+// Value returns the Importance in uint8.
+func (i *Importance) Value() uint8 {
+	return i.value
 }
 
 // String returns the Importance in string.
@@ -1673,7 +1955,6 @@ type LongData struct {
 
 // NewLongData creates a new LongData.
 func NewLongData(v []byte) *LongData {
-	log.Println(len(v))
 	return &LongData{
 		paramType: PTypeV,
 		code:      PCodeLongData,
@@ -1682,18 +1963,29 @@ func NewLongData(v []byte) *LongData {
 	}
 }
 
-// Read sets the values retrieved from byte sequence in a LongData.
-func (l *LongData) Read(b []byte) (int, error) {
-	if l.paramType != PTypeV {
-		l.paramType = PTypeV
+// ParseLongData parses the given byte sequence as a LongData.
+func ParseLongData(b []byte) (*LongData, int, error) {
+	l := &LongData{}
+	n, err := l.Read(b)
+	if err != nil {
+		return nil, n, err
 	}
 
+	return l, n, nil
+}
+
+// Read sets the values retrieved from byte sequence in a LongData.
+func (l *LongData) Read(b []byte) (int, error) {
 	n := len(b)
+
+	l.paramType = PTypeV
 	l.code = PCodeLongData
+
 	l.length = int(binary.BigEndian.Uint16(b[:2]))
 	if n < l.length+2 {
 		return n, io.ErrUnexpectedEOF
 	}
+
 	l.value = b[2 : l.length+2]
 	return n, nil
 }
@@ -1709,14 +2001,19 @@ func (l *LongData) Write(b []byte) (int, error) {
 	return l.length, nil
 }
 
-// Value returns the LongData in []byte.
-func (l *LongData) Value() []byte {
-	return l.value
+// MarshalLen returns the serial length of LongData.
+func (l *LongData) MarshalLen() int {
+	return l.length + 2
 }
 
 // Code returns the LongData in ParameterNameCode.
 func (l *LongData) Code() ParameterNameCode {
 	return l.code
+}
+
+// Value returns the LongData in []byte.
+func (l *LongData) Value() []byte {
+	return l.value
 }
 
 // String returns the LongData in string.
