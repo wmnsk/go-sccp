@@ -72,51 +72,60 @@ func main() {
 		log.Fatal(err)
 	}
 
-	cd, err := utils.EncodeBCD("1234567890123456")
-	if err != nil {
-		log.Fatal(err)
-	}
-	cg, err := utils.EncodeBCD("9876543210")
-	if err != nil {
-		log.Fatal(err)
-	}
-
 	gti := params.GTITTNPESNAI
 	ai := params.NewAddressIndicator(false, true, false, gti)
-	cdPA := params.NewPartyAddressTyped(
+	cdPA := params.NewCalledPartyAddress(
 		ai, 0, 6, params.NewGlobalTitle(
 			gti,
 			params.TranslationType(0),
 			params.NPISDNTelephony,
 			params.ESBCDOdd,
 			params.NAIInternationalNumber,
-			cd,
+			utils.MustBCDEncode("1234567890123456"),
 		),
 	)
-	cgPA := params.NewPartyAddressTyped(
+	cgPA := params.NewCallingPartyAddress(
 		ai, 0, 7, params.NewGlobalTitle(
 			gti,
 			params.TranslationType(1),
 			params.NPISDNMobile,
 			params.ESBCDOdd,
 			params.NAIInternationalNumber,
-			cg,
+			utils.MustBCDEncode("9876543210"),
 		),
 	)
 	// create UDT message with CdPA, CgPA and payload
-	udt, err := sccp.NewUDT(
+	udt := sccp.NewUDT(
 		1,    // Protocol Class
 		true, // Message handling
 		cdPA,
 		cgPA,
 		payload, // payload
-	).MarshalBinary()
+	)
+	u, err := udt.MarshalBinary()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	xudt := sccp.NewXUDT(
+		1,    // Protocol Class
+		true, // Message handling
+		2,    // Hop Counter
+		cdPA,
+		cgPA,
+		payload, // payload
+		params.NewSegmentation(true, 1, 2, 0x123456),
+		params.NewImportance(10),
+	)
+	x, err := xudt.MarshalBinary()
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	// send once
-	if _, err := m3conn.Write(udt); err != nil {
+	i := 1
+	log.Printf("Sending %04d: %v", i, udt)
+	if _, err := m3conn.Write(u); err != nil {
 		log.Fatal(err)
 	}
 
@@ -129,7 +138,17 @@ func main() {
 			ticker.Stop()
 			os.Exit(1)
 		case <-ticker.C:
-			if _, err := m3conn.Write(udt); err != nil {
+			i++
+
+			var msg sccp.Message = udt
+			b := u
+			if i%2 == 0 {
+				msg = xudt
+				b = x
+			}
+
+			log.Printf("Sending %04d: %v", i, msg)
+			if _, err := m3conn.Write(b); err != nil {
 				log.Fatal(err)
 			}
 		}

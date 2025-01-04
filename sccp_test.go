@@ -7,7 +7,6 @@ package sccp_test
 import (
 	"encoding"
 	"io"
-	"log"
 	"strings"
 	"testing"
 
@@ -18,6 +17,7 @@ import (
 
 type serializable interface {
 	encoding.BinaryMarshaler
+	MarshalTo([]byte) error
 	MarshalLen() int
 }
 
@@ -25,14 +25,14 @@ var testcases = []struct {
 	description string
 	structured  serializable
 	serialized  []byte
-	decodeFunc  func([]byte) (serializable, error)
+	parseFunc   func([]byte) (serializable, error)
 }{
 	{
 		description: "UDT",
 		structured: sccp.NewUDT(
 			1,    // Protocol Class
 			true, // Message handling
-			params.NewPartyAddressTyped(
+			params.NewCalledPartyAddress(
 				params.NewAddressIndicator(false, true, false, params.GTITTNPESNAI),
 				0, 6, // SPC, SSN
 				params.NewGlobalTitle(
@@ -44,7 +44,7 @@ var testcases = []struct {
 					[]byte{0x21, 0x43, 0x65, 0x87, 0x09, 0x21, 0x43, 0x65},
 				),
 			),
-			params.NewPartyAddressTyped(
+			params.NewCallingPartyAddress(
 				params.NewAddressIndicator(false, true, false, params.GTITTNPESNAI),
 				0, 7, // SPC, SSN
 				params.NewGlobalTitle(
@@ -59,17 +59,15 @@ var testcases = []struct {
 			[]byte{0xde, 0xad, 0xbe, 0xef},
 		),
 		serialized: []byte{
-			0x09, 0x81, 0x03, 0x10, 0x1a, 0x0d, 0x12, 0x06, 0x00, 0x11, 0x04, 0x21, 0x43, 0x65, 0x87, 0x09,
-			0x21, 0x43, 0x65, 0x0a, 0x12, 0x07, 0x00, 0x12, 0x04, 0x89, 0x67, 0x45, 0x23, 0x01, 0x04, 0xde,
-			0xad, 0xbe, 0xef,
+			0x09,
+			0x81,
+			0x03, 0x10, 0x1a,
+			0x0d, 0x12, 0x06, 0x00, 0x11, 0x04, 0x21, 0x43, 0x65, 0x87, 0x09, 0x21, 0x43, 0x65,
+			0x0a, 0x12, 0x07, 0x00, 0x12, 0x04, 0x89, 0x67, 0x45, 0x23, 0x01,
+			0x04, 0xde, 0xad, 0xbe, 0xef,
 		},
-		decodeFunc: func(b []byte) (serializable, error) {
-			v, err := sccp.ParseUDT(b)
-			if err != nil {
-				return nil, err
-			}
-
-			return v, nil
+		parseFunc: func(b []byte) (serializable, error) {
+			return sccp.ParseUDT(b)
 		},
 	},
 	{
@@ -77,54 +75,126 @@ var testcases = []struct {
 		structured: sccp.NewUDT(
 			1,    // Protocol Class
 			true, // Message handling
-			params.NewPartyAddress( // CalledPartyAddress: 1234567890123456
-				0x42, 0, 6, 0x00, // Indicator, SPC, SSN, TT
-				0x00, 0x00, 0x00, // NP, ES, NAI
-				nil, // GlobalTitleInformation
-			),
-			params.NewPartyAddress( // CalledPartyAddress: 1234567890123456
-				0x42, 0, 7, 0x00, // Indicator, SPC, SSN, TT
-				0x00, 0x00, 0x00, // NP, ES, NAI
-				nil, // GlobalTitleInformation
-			),
+			params.NewCalledPartyAddress(0x42, 0, 6, nil),
+			params.NewCallingPartyAddress(0x42, 0, 7, nil),
 			nil,
 		),
 		serialized: []byte{
 			0x09, 0x81, 0x03, 0x05, 0x07, 0x02, 0x42, 0x06, 0x02, 0x42, 0x07, 0x00,
 		},
-		decodeFunc: func(b []byte) (serializable, error) {
-			v, err := sccp.ParseUDT(b)
-			if err != nil {
-				return nil, err
-			}
-
-			return v, nil
+		parseFunc: func(b []byte) (serializable, error) {
+			return sccp.ParseUDT(b)
+		},
+	},
+	{
+		description: "XUDT/No optionals",
+		structured: sccp.NewXUDT(
+			1,    // Protocol Class
+			true, // Message handling
+			2,    // Hop Counter
+			params.NewCalledPartyAddress(
+				params.NewAddressIndicator(false, true, false, params.GTITTNPESNAI),
+				0, 6, // SPC, SSN
+				params.NewGlobalTitle(
+					params.GTITTNPESNAI,
+					params.TranslationType(0),
+					params.NPISDNTelephony,
+					params.ESBCDOdd,
+					params.NAIInternationalNumber,
+					[]byte{0x21, 0x43, 0x65, 0x87, 0x09, 0x21, 0x43, 0x65},
+				),
+			),
+			params.NewCallingPartyAddress(
+				params.NewAddressIndicator(false, true, false, params.GTITTNPESNAI),
+				0, 7, // SPC, SSN
+				params.NewGlobalTitle(
+					params.GTITTNPESNAI,
+					params.TranslationType(0),
+					params.NPISDNTelephony,
+					params.ESBCDEven,
+					params.NAIInternationalNumber,
+					[]byte{0x89, 0x67, 0x45, 0x23, 0x01},
+				),
+			),
+			[]byte{0xde, 0xad, 0xbe, 0xef},
+		),
+		serialized: []byte{
+			0x11,                   // MsgType
+			0x81,                   // Protocol Class
+			0x02,                   // Hop Counter
+			0x04, 0x11, 0x1b, 0x00, // Pointers
+			0x0d, 0x12, 0x06, 0x00, 0x11, 0x04, 0x21, 0x43, 0x65, 0x87, 0x09, 0x21, 0x43, 0x65, // CdPA
+			0x0a, 0x12, 0x07, 0x00, 0x12, 0x04, 0x89, 0x67, 0x45, 0x23, 0x01, // CgPA
+			0x04, 0xde, 0xad, 0xbe, 0xef, // Data
+		},
+		parseFunc: func(b []byte) (serializable, error) {
+			return sccp.ParseXUDT(b)
+		},
+	},
+	{
+		description: "XUDT/with optionals",
+		structured: sccp.NewXUDT(
+			1,    // Protocol Class
+			true, // Message handling
+			2,    // Hop Counter
+			params.NewCalledPartyAddress(
+				params.NewAddressIndicator(false, true, false, params.GTITTNPESNAI),
+				0, 6, // SPC, SSN
+				params.NewGlobalTitle(
+					params.GTITTNPESNAI,
+					params.TranslationType(0),
+					params.NPISDNTelephony,
+					params.ESBCDOdd,
+					params.NAIInternationalNumber,
+					[]byte{0x21, 0x43, 0x65, 0x87, 0x09, 0x21, 0x43, 0x65},
+				),
+			),
+			params.NewCallingPartyAddress(
+				params.NewAddressIndicator(false, true, false, params.GTITTNPESNAI),
+				0, 7, // SPC, SSN
+				params.NewGlobalTitle(
+					params.GTITTNPESNAI,
+					params.TranslationType(0),
+					params.NPISDNTelephony,
+					params.ESBCDEven,
+					params.NAIInternationalNumber,
+					[]byte{0x89, 0x67, 0x45, 0x23, 0x01},
+				),
+			),
+			[]byte{0xde, 0xad, 0xbe, 0xef},
+			params.NewSegmentation(true, 1, 2, 0xffffff),
+			params.NewImportance(2),
+		),
+		serialized: []byte{
+			0x11,                   // MsgType
+			0x81,                   // Protocol Class
+			0x02,                   // Hop Counter
+			0x04, 0x11, 0x1b, 0x1f, // Pointers
+			0x0d, 0x12, 0x06, 0x00, 0x11, 0x04, 0x21, 0x43, 0x65, 0x87, 0x09, 0x21, 0x43, 0x65, // CdPA
+			0x0a, 0x12, 0x07, 0x00, 0x12, 0x04, 0x89, 0x67, 0x45, 0x23, 0x01, // CgPA
+			0x04, 0xde, 0xad, 0xbe, 0xef, // Data
+			0x10, 0x04, 0xc2, 0xff, 0xff, 0xff, // Segmentation
+			0x12, 0x01, 0x02, // Importance
+			0x00, // End of optional parameters
+		},
+		parseFunc: func(b []byte) (serializable, error) {
+			return sccp.ParseXUDT(b)
 		},
 	},
 	{
 		description: "SCMG SSA",
 		structured:  sccp.NewSCMG(sccp.SCMGTypeSSA, 9, 405, 0, 0),
 		serialized:  []byte{0x1, 0x09, 0x95, 0x01, 0x00},
-		decodeFunc: func(b []byte) (serializable, error) {
-			v, err := sccp.ParseSCMG(b)
-			if err != nil {
-				return nil, err
-			}
-
-			return v, nil
+		parseFunc: func(b []byte) (serializable, error) {
+			return sccp.ParseSCMG(b)
 		},
 	},
 	{
 		description: "SCMG SSC",
 		structured:  sccp.NewSCMG(sccp.SCMGTypeSSC, 9, 405, 0, 4),
 		serialized:  []byte{0x6, 0x09, 0x95, 0x01, 0x00, 0x04},
-		decodeFunc: func(b []byte) (serializable, error) {
-			v, err := sccp.ParseSCMG(b)
-			if err != nil {
-				return nil, err
-			}
-
-			return v, nil
+		parseFunc: func(b []byte) (serializable, error) {
+			return sccp.ParseSCMG(b)
 		},
 	},
 }
@@ -135,7 +205,7 @@ func TestMessages(t *testing.T) {
 	for _, c := range testcases {
 		t.Run(c.description, func(t *testing.T) {
 			t.Run("Decode", func(t *testing.T) {
-				msg, err := c.decodeFunc(c.serialized)
+				msg, err := c.parseFunc(c.serialized)
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -148,7 +218,6 @@ func TestMessages(t *testing.T) {
 			t.Run("Serialize", func(t *testing.T) {
 				b, err := c.structured.MarshalBinary()
 				if err != nil {
-					log.Println(err)
 					t.Fatal(err)
 				}
 
@@ -191,9 +260,9 @@ func TestPartialStructuredMessages(t *testing.T) {
 		}
 		for i := range c.serialized {
 			partial := c.serialized[:i]
-			_, err := c.decodeFunc(partial)
+			_, err := c.parseFunc(partial)
 			if err != io.ErrUnexpectedEOF {
-				t.Errorf("%#x: got error %v, want unexpected EOF", partial, err)
+				t.Errorf("parse %v / %#x: got error %v, want unexpected EOF", c.description, partial, err)
 			}
 		}
 
@@ -202,8 +271,8 @@ func TestPartialStructuredMessages(t *testing.T) {
 				continue
 			}
 			b := make([]byte, i)
-			if err := c.structured.(*sccp.UDT).MarshalTo(b); err != io.ErrUnexpectedEOF {
-				t.Errorf("%#x: got error %v, want unexpected EOF", b, err)
+			if err := c.structured.MarshalTo(b); err != io.ErrUnexpectedEOF {
+				t.Errorf("marshal %v / %#x: got error %v, want unexpected EOF", c.description, b, err)
 			}
 		}
 	}
