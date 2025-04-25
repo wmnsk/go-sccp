@@ -4,5 +4,5 @@ github.com/ishidawataru/sctp v0.0.0-20250425063137-c91d9fd4afaf h1:Yk0+ELKOCwbQ3
 github.com/ishidawataru/sctp v0.0.0-20250425063137-c91d9fd4afaf/go.mod h1:co9pwDoBCm1kGxawmb4sPq0cSIOOWNPT4KnHotMP1Zg=
 github.com/pascaldekloe/goe v0.1.1 h1:Ah6WQ56rZONR3RW3qWa2NCZ6JAVvSpUcoLBaOmYFt9Q=
 github.com/pascaldekloe/goe v0.1.1/go.mod h1:KSyfaxQOh0HZPjDP1FL/kFtbqYqrALJTaMafFUIccqU=
-github.com/wmnsk/go-m3ua v0.1.9 h1:3dhHT63HQ9CVFRwqKrHi54nIonHbRDnuYPIhLnUQ4Pg=
-github.com/wmnsk/go-m3ua v0.1.9/go.mod h1:OtE8HG+xgrjwmdVbXI+x4Xkm4HtdhDha+Ztbb/H8HSQ=
+github.com/wmnsk/go-m3ua v0.1.10 h1:iG5/mjylDUw3ka2pyNGGTtKFJh+laLNbx/uxknUJTxA=
+github.com/wmnsk/go-m3ua v0.1.10/go.mod h1:aMCnhOuDQ+SqxWKxom6GQGA5GkwrzEAXd9uweiKAtm4=
