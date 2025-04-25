@@ -172,7 +172,7 @@ func ParseXUDT(b []byte) (*XUDT, error) {
 // UnmarshalBinary sets the values retrieved from byte sequence in a SCCP XUDT.
 func (x *XUDT) UnmarshalBinary(b []byte) error {
 	l := len(b)
-	if l <= 5 { // where CdPA starts
+	if l <= 5 {
 		return io.ErrUnexpectedEOF
 	}
 
@@ -194,37 +194,50 @@ func (x *XUDT) UnmarshalBinary(b []byte) error {
 	offset += n
 
 	x.ptr1 = b[offset]
-	if l < int(x.ptr1) {
+	offsetPtr1 := 3 + int(x.ptr1)
+	if l < offsetPtr1+1 { // where CdPA starts
 		return io.ErrUnexpectedEOF
 	}
 	x.ptr2 = b[offset+1]
-	if l < int(x.ptr2+4) { // where CgPA starts
+	offsetPtr2 := 4 + int(x.ptr2)
+	if l < offsetPtr2+1 { // where CgPA starts
 		return io.ErrUnexpectedEOF
 	}
 	x.ptr3 = b[offset+2]
-	if l < int(x.ptr3+5) { // where Data starts
+	offsetPtr3 := 5 + int(x.ptr3)
+	if l < offsetPtr3+1 { // where Data starts
 		return io.ErrUnexpectedEOF
 	}
 	x.ptr4 = b[offset+3]
-	if m := int(x.ptr4); (m != 0) && l < m+7 { // where optional parameters start
+	offsetPtr4 := 6 + int(x.ptr4)             // Optional params have a parameter name preceding its length and value, so we cannot take the first byte as a length
+	if m := offsetPtr4; (m != 0) && l < m+1 { // where optional parameters start
 		return io.ErrUnexpectedEOF
 	}
 
-	offset += 4
-	cdpaEnd := int(x.ptr2 + 4)
-	cgpaEnd := int(x.ptr3 + 5)
-	dataEnd := int(x.ptr4 + 6)
-	x.CalledPartyAddress, _, err = params.ParseCalledPartyAddress(b[offset:cdpaEnd])
+	cdpaEnd := offsetPtr1 + int(b[offsetPtr1]) + 1 // +1 is the data length included from the beginning
+	if l < cdpaEnd {                               // where CdPA ends
+		return io.ErrUnexpectedEOF
+	}
+	cgpaEnd := offsetPtr2 + int(b[offsetPtr2]) + 1
+	if l < cgpaEnd { // where CgPA ends
+		return io.ErrUnexpectedEOF
+	}
+	dataEnd := offsetPtr3 + int(b[offsetPtr3]) + 1
+	if l < dataEnd { // where Data ends
+		return io.ErrUnexpectedEOF
+	}
+
+	x.CalledPartyAddress, _, err = params.ParseCalledPartyAddress(b[offsetPtr1:cdpaEnd])
 	if err != nil {
 		return err
 	}
 
-	x.CallingPartyAddress, _, err = params.ParseCallingPartyAddress(b[cdpaEnd:cgpaEnd])
+	x.CallingPartyAddress, _, err = params.ParseCallingPartyAddress(b[offsetPtr2:cgpaEnd])
 	if err != nil {
 		return err
 	}
 
-	x.Data, _, err = params.ParseData(b[cgpaEnd:])
+	x.Data, _, err = params.ParseData(b[offsetPtr3:dataEnd])
 	if err != nil {
 		return err
 	}
@@ -233,7 +246,7 @@ func (x *XUDT) UnmarshalBinary(b []byte) error {
 		return nil
 	}
 
-	opts, _, err := params.ParseOptionalParameters(b[dataEnd:])
+	opts, _, err := params.ParseOptionalParameters(b[offsetPtr4:])
 	if err != nil {
 		return err
 	}

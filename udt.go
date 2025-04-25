@@ -110,7 +110,7 @@ func ParseUDT(b []byte) (*UDT, error) {
 // UnmarshalBinary sets the values retrieved from byte sequence in a SCCP UDT.
 func (u *UDT) UnmarshalBinary(b []byte) error {
 	l := len(b)
-	if l <= 5 { // where CdPA starts
+	if l <= 5 {
 		return io.ErrUnexpectedEOF
 	}
 
@@ -125,33 +125,46 @@ func (u *UDT) UnmarshalBinary(b []byte) error {
 	offset += n
 
 	u.ptr1 = b[offset]
-	if l < int(u.ptr1) {
+	offsetPtr1 := 2 + int(u.ptr1)
+	if l < offsetPtr1+1 { // where CdPA starts
 		return io.ErrUnexpectedEOF
 	}
 	u.ptr2 = b[offset+1]
-	if l < int(u.ptr2+3) { // where CgPA starts
+	offsetPtr2 := 3 + int(u.ptr2)
+	if l < offsetPtr2+1 { // where CgPA starts
 		return io.ErrUnexpectedEOF
 	}
 	u.ptr3 = b[offset+2]
-	if l < int(u.ptr3+5) { // where u.Data starts
+	offsetPtr3 := 4 + int(u.ptr3)
+	if l < offsetPtr3+1 { // where u.Data starts
 		return io.ErrUnexpectedEOF
 	}
 
-	offset += 3
-	cdpaEnd := int(u.ptr2 + 3)
-	cgpaEnd := int(u.ptr3 + 4)
-	u.CalledPartyAddress, _, err = params.ParseCalledPartyAddress(b[offset:cdpaEnd])
+	cdpaEnd := offsetPtr1 + int(b[offsetPtr1]) + 1 // +1 is the data length included from the beginning
+	if l < cdpaEnd {                               // where CdPA ends
+		return io.ErrUnexpectedEOF
+	}
+	cgpaEnd := offsetPtr2 + int(b[offsetPtr2]) + 1
+	if l < cgpaEnd { // where CgPA ends
+		return io.ErrUnexpectedEOF
+	}
+	dataEnd := offsetPtr3 + int(b[offsetPtr3]) + 1
+	if l < dataEnd { // where Data ends
+		return io.ErrUnexpectedEOF
+	}
+
+	u.CalledPartyAddress, _, err = params.ParseCalledPartyAddress(b[offsetPtr1:cdpaEnd])
 	if err != nil {
 		return err
 	}
 
-	u.CallingPartyAddress, _, err = params.ParseCallingPartyAddress(b[cdpaEnd:cgpaEnd])
+	u.CallingPartyAddress, _, err = params.ParseCallingPartyAddress(b[offsetPtr2:cgpaEnd])
 	if err != nil {
 		return err
 	}
 
 	u.Data = &params.Data{}
-	if _, err := u.Data.Read(b[cgpaEnd:]); err != nil {
+	if _, err := u.Data.Read(b[offsetPtr3:dataEnd]); err != nil {
 		return err
 	}
 
