@@ -5,7 +5,7 @@ Package sccp provides simple and painless handling of SCCP (Signaling Connection
 [![CI status](https://github.com/wmnsk/go-sccp/actions/workflows/go.yml/badge.svg)](https://github.com/wmnsk/go-sccp/actions/workflows/go.yml)
 [![golangci-lint](https://github.com/wmnsk/go-sccp/actions/workflows/golangci-lint.yml/badge.svg)](https://github.com/wmnsk/go-sccp/actions/workflows/golangci-lint.yml)
 [![Go Reference](https://pkg.go.dev/badge/github.com/wmnsk/go-sccp.svg)](https://pkg.go.dev/github.com/wmnsk/go-sccp)
-[![GitHub](https://img.shields.io/github/license/mashape/apistatus.svg)](https://github.com/wmnsk/go-sccp/blob/master/LICENSE)
+[![GitHub](https://img.shields.io/github/license/mashape/apistatus.svg)](https://github.com/wmnsk/go-sccp/blob/main/LICENSE)
 
 ## Disclaimer
 
@@ -73,4 +73,4 @@ Yoshiyuki Kurauchi ([Website](https://wmnsk.com/)) and [contributors](https://gi
 
 ## LICENSE
 
-[MIT](https://github.com/wmnsk/go-sccp/blob/master/LICENSE)
+[MIT](https://github.com/wmnsk/go-sccp/blob/main/LICENSE)
