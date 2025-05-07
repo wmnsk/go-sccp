@@ -11,7 +11,7 @@ import (
 
 // BCDEncode encodes a string into BCD-encoded bytes.
 func BCDEncode(s string) ([]byte, error) {
-	return StrToSwappedBytes(s, "0")
+	return StrToSwappedBytes(s, "f")
 }
 
 // MustBCDEncode is the same as BCDEncode but panics if any error occurs.
