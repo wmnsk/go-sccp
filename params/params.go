@@ -504,7 +504,7 @@ func (p *PartyAddress) read(b []byte) (int, error) {
 		if end >= len(b) {
 			return n, io.ErrUnexpectedEOF
 		}
-		p.SignalingPointCode = binary.BigEndian.Uint16(b[n:end])
+		p.SignalingPointCode = binary.LittleEndian.Uint16(b[n:end])
 		n = end
 	}
 
@@ -563,7 +563,7 @@ func (p *PartyAddress) write(b []byte) (int, error) {
 
 	var n = 2
 	if p.HasPC() {
-		binary.BigEndian.PutUint16(b[n:n+2], p.SignalingPointCode)
+		binary.LittleEndian.PutUint16(b[n:n+2], p.SignalingPointCode)
 		n += 2
 	}
 
